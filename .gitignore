@@ -1,0 +1,31 @@
+# Environment variables (contains API keys!)
+.env
+
+# Virtual environment
+gis_agent_venv/
+venv/
+env/
+*.pyc
+__pycache__/
+
+# Large data files
+*.gdb/
+*.gpkg
+*.shp
+*.dbf
+*.shx
+*.prj
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Outputs
+outputs/
+*.html

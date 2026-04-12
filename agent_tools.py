@@ -4,11 +4,71 @@ import pandas as pd
 import json
 import os
 
-source=None
+source = None
+
 
 @tool
-def read_data():
-    return json.dumps(source,indent=2)
+def list_regions() -> str:
+    """Get list of all regions and their layers"""
+    result = {}
+    for region, data in source.items():
+        if "GDB" in data:
+            result[region] = {
+                "type": "GDB",
+                "layers": list(data["GDB"].keys())
+            }
+        elif "CSV" in data:
+            result[region] = {
+                "type": "CSV",
+                "layers": ["csv_data"]
+            }
+    return json.dumps(result, indent=2)
+
+
+
+@tool
+def read_layer_data(region: str, layer: str) -> str:
+    """Get detailed schema and XML for ONE specific layer"""
+    if region not in source:
+        return f"Error: Region {region} not found"
+    
+    data = source[region]
+    summary = {
+        "region": region,
+        "layer": layer,
+        "columns": [],
+        "xml_definitions": {}
+    }
+    
+    # Get the layer's columns
+    if "GDB" in data:
+        if layer not in data["GDB"]:
+            return f"Error: Layer {layer} not found in {region}"
+        layer_info = data["GDB"][layer]
+        summary["columns"] = layer_info["Columns"]
+        summary["num_rows"] = layer_info.get("Num Rows")
+        summary["geometry"] = layer_info.get("Geometry")
+    
+    elif "CSV" in data:
+        summary["columns"] = data["CSV"]["Columns"]
+        summary["num_rows"] = data["CSV"].get("Num Rows")
+    
+    # Find the relevant XML file for this layer
+    if data.get("XML"):
+        # Check if XML is a dict or list
+        xml_data = data["XML"]
+        
+        if isinstance(xml_data, dict):
+            # Look for XML file matching this layer name
+            for xml_file, definitions in xml_data.items():
+                if layer in xml_file:
+                    summary["xml_definitions"] = definitions
+                    break
+        elif isinstance(xml_data, list):
+            # XML is already a list of definitions
+            summary["xml_definitions"] = xml_data
+    
+    return json.dumps(summary, indent=2)
 
 
 @tool
@@ -80,7 +140,3 @@ def merge_all(file_list: str) -> str:
     
     except Exception as e:
         return f"✗ Error merging: {str(e)}"
-            
-    
-    
-

@@ -9,12 +9,15 @@ env/
 __pycache__/
 
 # Large data files
+Data/
+SI_INDOPAC_GIS_Data-Level_LayerPackages/
 *.gdb/
 *.gpkg
 *.shp
 *.dbf
 *.shx
 *.prj
+*.lpkx
 
 # OS files
 .DS_Store
@@ -26,6 +29,8 @@ Thumbs.db
 *.swp
 *.swo
 
+# Claude settings
+.claude/
+
 # Outputs
 outputs/
-*.html

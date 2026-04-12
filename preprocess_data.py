@@ -177,6 +177,9 @@ LAC_ports=InspectData('Data/PORTS_LAC.csv','Data/PORTS_LAC.xml')
 lac_ports_csv=LAC_ports.inspect_file_type()
 lac_ports_xml=LAC_ports.read_xml_metadata()
 
+
+
+
 source["PORTS_LAC"]={"CSV":lac_ports_csv,
                   "XML": lac_ports_xml}
 
@@ -190,9 +193,9 @@ source["MINEFAC_LAC"]={"CSV":lac_minefac_csv,
                   "XML": lac_minefac_xml}
 
 
-print(source)
+# print(source)
 
 
-
+# print(source["INDOPAC"])
 
     

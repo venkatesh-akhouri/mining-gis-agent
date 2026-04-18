@@ -130,7 +130,7 @@ def get_geojson(layer_name: str):
 
 @app.get("/tiles/{z}/{x}/{y}")
 def get_tile(z: int, x: int, y: int):
-    url = f"https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
+    url = f"https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     ctx = ssl.create_default_context()
     ctx.check_hostname = False

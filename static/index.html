@@ -33,6 +33,12 @@
 
     html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; overflow: hidden; background: var(--bg); }
 
+    /* Embed mode — hide sidebar when ?embed=1 */
+    body.embed #sidebar { display: none !important; }
+    body.embed #cesiumContainer { flex: 1; }
+    body.embed #globe-hint { display: none; }
+    body.embed #status-badge { display: none; }
+
 
     #app { display: flex; height: 100vh; width: 100vw; }
 
@@ -254,6 +260,11 @@
 
 </div>
 <script>
+// ── Embed mode (hide sidebar when loaded inside iframe) ───────────────────────
+if (new URLSearchParams(window.location.search).get('embed') === '1') {
+  document.body.classList.add('embed');
+}
+
 // ── Commodity colours ─────────────────────────────────────────────────────────
 const KNOWN = {
   "gold":"#F59E0B","copper":"#EA580C","coal":"#6B7280","natural gas":"#38BDF8",

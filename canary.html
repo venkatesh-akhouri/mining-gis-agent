@@ -147,7 +147,7 @@ html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui,
 
 /* ── MAP SECTION ───────────────────────────────────────────── */
 .map-section { flex-shrink: 0; position: relative; border-bottom: 1px solid var(--border); }
-.map-outer { position: relative; overflow: hidden; height: 420px; background: #e8e3db; }
+.map-outer { position: relative; overflow: hidden; height: 500px; background: #e8e3db; }
 #canary-globe { position: absolute; inset: 0; width: 100%; height: 100%; }
 #canary-globe .cesium-widget-credits,
 #canary-globe .cesium-credit-logoContainer { display: none !important; }
@@ -1390,29 +1390,27 @@ function initCanaryGlobe() {
     skyAtmosphere: false,
   });
 
-  // Schematic globe — no external tile dependency, fully standalone
-  // Use Natural Earth II imagery bundled with Cesium (no network requests)
+  // CartoDB Positron (light) — clear continent outlines matching canary theme
   viewer.imageryLayers.removeAll();
-  viewer.imageryLayers.addImageryProvider(
-    new Cesium.TileMapServiceImageryProvider({
-      url: Cesium.buildModuleUrl('Assets/Textures/NaturalEarthII'),
-      fileExtension: 'jpg',
-      maximumLevel: 2,
-      credit: new Cesium.Credit('Natural Earth II imagery'),
-    })
-  );
+  viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({
+    url: "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+    maximumLevel: 18,
+    credit: new Cesium.Credit("© OpenStreetMap contributors © CARTO", false),
+  }));
 
-  // Warm background matching canary page, atmosphere glow
+  // Warm background matching canary page; atmosphere makes sphere edge visible
   viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#e8e3db");
-  viewer.scene.globe.baseColor  = Cesium.Color.fromCssColorString("#3a7bbf");
+  viewer.scene.globe.baseColor  = Cesium.Color.fromCssColorString("#4a90c4");
   viewer.scene.globe.enableLighting   = false;
   viewer.scene.globe.showGroundAtmosphere = true;
   viewer.scene.skyAtmosphere = new Cesium.SkyAtmosphere();
-  viewer.scene.skyAtmosphere.atmosphereLightIntensity = 5.0;
+  viewer.scene.skyAtmosphere.atmosphereLightIntensity = 8.0;
+  viewer.scene.skyAtmosphere.hueShift   =  0.0;
+  viewer.scene.skyAtmosphere.saturationShift = 0.1;
 
-  // Camera — straight down so the globe disc sits perfectly centred in the section
+  // Altitude 33 000 km → sphere diameter ≈ 500 px → fits the 500 px section height
   viewer.camera.setView({
-    destination: Cesium.Cartesian3.fromDegrees(30, 15, 18000000),
+    destination: Cesium.Cartesian3.fromDegrees(30, 10, 33000000),
     orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 },
   });
 

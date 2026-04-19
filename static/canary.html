@@ -1,0 +1,1492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CANARY by MINRIS — Critical Mineral Intelligence Terminal</title>
+<!-- CesiumJS 3D Globe -->
+<script>window.CESIUM_BASE_URL = "https://cesium.com/downloads/cesiumjs/releases/1.111/Build/Cesium/";</script>
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.111/Build/Cesium/Cesium.js"></script>
+<link href="https://cesium.com/downloads/cesiumjs/releases/1.111/Build/Cesium/Widgets/widgets.css" rel="stylesheet"/>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:      #F8F4EF;
+  --bg2:     #FFFFFF;
+  --bg3:     #F2ECE5;
+  --navy:    #06426C;
+  --navy-lt: #1a6496;
+  --navy-dk: #042f4e;
+  --red:     #9E2114;
+  --red-lt:  #C23020;
+  --amber:   #B85020;
+  --yellow:  #8B6614;
+  --green:   #2A7A52;
+  --plat:    #B3B2AF;
+  --graph:   #9CA3AF;
+  --text:    #1C2B35;
+  --text2:   #4B5E6D;
+  --border:  #DDD6CC;
+  --border2: #EAE4DB;
+  --lnav-w:  148px;
+  --rw-w:    224px;
+}
+html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+/* ── SUBTLE BACKGROUND TEXTURE ──────────────────────────── */
+.grid-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: linear-gradient(rgba(6,66,108,.03) 1px,transparent 1px),
+                    linear-gradient(90deg,rgba(6,66,108,.03) 1px,transparent 1px);
+  background-size: 40px 40px; }
+.glow1 { position:fixed; top:-20%; left:-10%; width:600px; height:600px; border-radius:50%; pointer-events:none; z-index:0;
+  background:radial-gradient(circle,rgba(6,66,108,.05) 0%,transparent 70%); }
+.glow2 { position:fixed; bottom:-20%; right:-10%; width:500px; height:500px; border-radius:50%; pointer-events:none; z-index:0;
+  background:radial-gradient(circle,rgba(158,33,20,.04) 0%,transparent 70%); }
+
+/* ── APP SHELL ─────────────────────────────────────────────── */
+.app { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100vh; }
+
+/* ── HEADER ────────────────────────────────────────────────── */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; height: 52px; flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,.95); backdrop-filter: blur(8px);
+  box-shadow: 0 1px 6px rgba(6,66,108,.08);
+}
+.logo-wrap { display: flex; align-items: center; gap: 12px; }
+.logo-mark { width: 32px; height: 32px; flex-shrink: 0; }
+.logo-name { font-size: 17px; font-weight: 900; letter-spacing: 1px; line-height: 1; }
+.logo-name .min { color: var(--red); }
+.logo-name .ris { color: var(--navy); }
+.logo-sub { font-size: 7.5px; color: var(--graph); letter-spacing: 2px; opacity: .8; margin-top: 2px; }
+.hdr-stats { display: flex; gap: 22px; align-items: center; }
+.hdr-stat { text-align: right; }
+.hdr-stat-val { font-size: 15px; font-weight: 800; color: var(--navy); line-height: 1; }
+.hdr-stat-lbl { font-size: 7.5px; color: var(--graph); letter-spacing: 1px; margin-top: 1px; }
+.badge { font-size: 8px; font-weight: 700; letter-spacing: 1px; padding: 3px 7px; border-radius: 3px; text-transform: uppercase; display: inline-block; }
+.badge-live { background:rgba(42,122,82,.12); color:var(--green); border:1px solid rgba(42,122,82,.3); }
+.pulse { animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.35;} }
+
+/* ── BODY ──────────────────────────────────────────────────── */
+.body { display: flex; flex: 1; overflow: hidden; }
+
+/* ── LEFT NAV ──────────────────────────────────────────────── */
+.left-nav {
+  width: var(--lnav-w); flex-shrink: 0;
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: rgba(255,255,255,.7);
+  overflow-y: auto; overflow-x: hidden;
+}
+.left-nav::-webkit-scrollbar { width: 3px; }
+.left-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.nav-section { padding: 12px 10px 8px; }
+.nav-section-title { font-size: 7px; font-weight: 700; letter-spacing: 2px; color: var(--graph); text-transform: uppercase; margin-bottom: 8px; }
+.nav-divider { height: 1px; background: var(--border2); margin: 2px 0; }
+
+.nav-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 5px; cursor: pointer;
+  font-size: 11px; font-weight: 600; color: var(--text2);
+  border: 1px solid transparent; margin-bottom: 3px;
+  transition: all .15s; user-select: none;
+}
+.nav-item:hover { background: rgba(6,66,108,.06); color: var(--navy); }
+.nav-item.active {
+  background: rgba(6,66,108,.1);
+  color: var(--navy);
+  border-color: rgba(6,66,108,.2);
+}
+.nav-icon { font-size: 13px; width: 16px; text-align: center; flex-shrink: 0; }
+.nav-label { flex: 1; }
+.nav-indicator {
+  width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0;
+  background: var(--border2); transition: background .15s;
+}
+.nav-item.active .nav-indicator { background: var(--navy); }
+
+.nav-chip {
+  display: block; padding: 4px 8px; border-radius: 4px; cursor: pointer;
+  font-size: 9px; font-weight: 600; border: 1px solid transparent;
+  transition: all .15s; color: var(--text2); margin-bottom: 3px;
+}
+.nav-chip:hover { background: rgba(6,66,108,.05); }
+.nav-chip.active-filter { border-color: currentColor; background: rgba(6,66,108,.04); }
+
+.nav-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; padding: 0 10px 10px; }
+.nav-kpi { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 7px 8px; }
+.nav-kpi-val { font-size: 15px; font-weight: 800; color: var(--navy); line-height: 1; }
+.nav-kpi-lbl { font-size: 7px; color: var(--graph); letter-spacing: 1px; margin-top: 2px; }
+
+.nav-source { font-size: 8px; color: var(--graph); line-height: 1.7; padding: 8px 10px 12px; border-top: 1px solid var(--border2); margin-top: auto; }
+.nav-source span { color: var(--text2); font-weight: 600; }
+
+/* ── CENTER ────────────────────────────────────────────────── */
+.center { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+/* ── CANARY BANNER ─────────────────────────────────────────── */
+.canary-banner {
+  flex-shrink: 0;
+  display: flex; align-items: center; gap: 18px;
+  padding: 0 20px; height: 44px;
+  background: linear-gradient(90deg, rgba(6,66,108,.06) 0%, rgba(158,33,20,.03) 100%);
+  border-bottom: 1px solid var(--border);
+}
+.canary-title {
+  font-size: 15px; font-weight: 900; letter-spacing: 1.5px;
+  color: var(--navy); text-transform: uppercase;
+}
+.canary-title em { font-style: normal; color: var(--red); }
+.canary-divider { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
+.canary-sub {
+  font-size: 10px; color: var(--text2); letter-spacing: .2px; font-style: italic;
+}
+
+/* ── MAP SECTION ───────────────────────────────────────────── */
+.map-section { flex-shrink: 0; position: relative; border-bottom: 1px solid var(--border); }
+.map-outer { position: relative; overflow: hidden; height: 380px; background: #e8e3db; }
+#canary-globe { position: absolute; inset: 0; width: 100%; height: 100%; }
+#canary-globe .cesium-widget-credits,
+#canary-globe .cesium-credit-logoContainer { display: none !important; }
+.map-legend {
+  position: absolute; bottom: 10px; left: 10px;
+  background: rgba(255,255,255,.92); border: 1px solid var(--border);
+  border-radius: 4px; padding: 7px 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+.map-legend-title { font-size: 7px; font-weight: 700; color: var(--text2); letter-spacing: 1.5px; margin-bottom: 5px; }
+.legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; font-size: 8px; color: var(--text2); }
+.legend-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── COUNTRY PANEL ─────────────────────────────────────────── */
+#country-panel { display: none; border-bottom: 1px solid var(--border); background: var(--bg2); flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.cp-inner { padding: 12px 16px; }
+.cp-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.cp-flag { font-size: 20px; }
+.cp-name { font-size: 14px; font-weight: 700; color: var(--text); }
+.cp-sub { font-size: 9px; color: var(--text2); margin-top: 1px; }
+.cp-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.meta-chip { font-size: 9px; padding: 2px 7px; border-radius: 20px; font-weight: 600; }
+.rc{background:rgba(158,33,20,.1);color:#9E2114;border:1px solid rgba(158,33,20,.3);}
+.rh{background:rgba(184,80,32,.1);color:#B85020;border:1px solid rgba(184,80,32,.3);}
+.rm{background:rgba(139,102,20,.1);color:#8B6614;border:1px solid rgba(139,102,20,.3);}
+.rl{background:rgba(42,122,82,.1);color:#2A7A52;border:1px solid rgba(42,122,82,.3);}
+.cp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px; margin-bottom: 8px; }
+.cp-stat { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; }
+.cp-stat-lbl { font-size: 7px; color: var(--text2); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
+.cp-stat-val { font-size: 13px; font-weight: 700; color: var(--text); }
+.mineral-badge { font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 3px; border: 1px solid; display: inline-block; margin: 2px; }
+.cp-close { margin-left: auto; background: none; border: none; color: var(--text2); cursor: pointer; font-size: 16px; padding: 0 4px; }
+.cp-close:hover { color: var(--red); }
+
+/* ── ACTIVE PANEL ZONE ─────────────────────────────────────── */
+.active-panel-zone { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.apanel { display: none; flex: 1; min-height: 0; flex-direction: column; overflow: hidden; }
+.apanel.is-active { display: flex; }
+
+.apanel-hdr {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 16px; height: 40px; flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,.98);
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+}
+.apanel-icon { font-size: 13px; }
+.apanel-title { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--navy); }
+.apanel-stat { font-size: 9px; color: var(--graph); margin-left: 6px; letter-spacing: .5px; }
+.apanel-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px 24px; }
+.apanel-body::-webkit-scrollbar { width: 4px; }
+.apanel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── RIGHT WIDGETS ─────────────────────────────────────────── */
+.right-widgets {
+  width: var(--rw-w); flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  background: rgba(255,255,255,.6);
+  overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column;
+  padding: 10px 9px 16px; gap: 8px;
+}
+.right-widgets::-webkit-scrollbar { width: 3px; }
+.right-widgets::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.widget-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 11px 12px; cursor: pointer;
+  transition: all .15s; flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+}
+.widget-card:hover { border-color: rgba(6,66,108,.35); box-shadow: 0 2px 8px rgba(6,66,108,.1); }
+.widget-card.active {
+  border-color: var(--navy);
+  box-shadow: 0 2px 10px rgba(6,66,108,.15);
+  background: rgba(6,66,108,.03);
+}
+
+.wc-hdr { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+.wc-icon { font-size: 11px; }
+.wc-title { font-size: 8px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--navy-lt); flex: 1; }
+.widget-card.active .wc-title { color: var(--navy); }
+.wc-sub { font-size: 8px; color: var(--graph); margin-bottom: 7px; letter-spacing: .3px; }
+.wc-arrow { font-size: 9px; color: var(--graph); transition: color .15s; }
+.widget-card.active .wc-arrow { color: var(--navy); }
+
+/* Widget inner content */
+.w-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.w-sym { font-size: 9px; font-weight: 800; width: 24px; flex-shrink: 0; }
+.w-bar-bg { flex: 1; height: 3px; background: var(--bg3); border-radius: 2px; }
+.w-bar { height: 3px; border-radius: 2px; }
+.w-val { font-size: 8px; color: var(--text2); width: 30px; text-align: right; flex-shrink: 0; }
+.w-badge { font-size: 7px; font-weight: 700; width: 32px; text-align: center; padding: 1px 3px; border-radius: 2px; flex-shrink: 0; }
+.w-score { font-size: 9px; font-weight: 800; width: 24px; text-align: right; flex-shrink: 0; }
+
+.w-ev-row { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 5px; }
+.w-ev-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 2px; }
+.w-ev-text { font-size: 9px; color: var(--text2); flex: 1; line-height: 1.35; }
+.w-ev-sev { font-size: 7px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+.w-more { font-size: 8px; color: var(--graph); margin-top: 2px; padding-left: 12px; }
+
+.w-proj-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.w-proj-dots { display: flex; gap: 2px; }
+.w-proj-dot { width: 5px; height: 5px; border-radius: 50%; }
+.w-proj-cnt { font-size: 9px; font-weight: 700; width: 14px; text-align: right; flex-shrink: 0; }
+
+/* ── PANEL CONTENT STYLES ──────────────────────────────────── */
+.minerals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.mineral-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 14px; transition: all .2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+}
+.mineral-card:hover { border-color: var(--navy); box-shadow: 0 3px 12px rgba(6,66,108,.1); }
+.mc-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+.mc-symbol { font-size: 22px; font-weight: 900; line-height: 1; }
+.mc-name { font-size: 10px; color: var(--text2); margin-top: 2px; }
+.risk-badge { font-size: 8px; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; }
+.risk-critical{background:rgba(158,33,20,.1);color:#9E2114;border:1px solid rgba(158,33,20,.3);}
+.risk-high{background:rgba(184,80,32,.1);color:#B85020;border:1px solid rgba(184,80,32,.3);}
+.risk-medium{background:rgba(139,102,20,.1);color:#8B6614;border:1px solid rgba(139,102,20,.3);}
+.risk-low{background:rgba(42,122,82,.1);color:#2A7A52;border:1px solid rgba(42,122,82,.3);}
+.mc-stat { font-size: 10px; color: var(--text2); margin-bottom: 4px; }
+.mc-stat strong { color: var(--text); font-weight: 700; }
+.producer-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.producer-bar-bg { position: relative; height: 3px; background: var(--bg3); border-radius: 2px; flex: 2; }
+.producer-bar { height: 3px; border-radius: 2px; position: absolute; top: 0; left: 0; }
+.hhi-bar-bg { background: var(--bg3); height: 3px; border-radius: 2px; margin-top: 3px; }
+.hhi-bar { height: 3px; border-radius: 2px; }
+
+.projects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.project-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 5px; padding: 12px 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+.project-card:hover { border-color: var(--navy); }
+.project-card-title { font-size: 12px; font-weight: 700; margin-bottom: 4px; color: var(--text); }
+.project-meta { font-size: 9px; color: var(--text2); margin-bottom: 2px; }
+.project-cap { font-size: 16px; font-weight: 800; color: var(--navy); margin-top: 8px; }
+.project-units { font-size: 9px; color: var(--text2); }
+
+.data-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.data-table th { text-align: left; padding: 7px 12px; font-size: 8px; font-weight: 700; letter-spacing: 1px; color: var(--text2); border-bottom: 2px solid var(--border); background: var(--bg3); }
+.data-table td { padding: 9px 12px; border-bottom: 1px solid var(--border2); color: var(--text); }
+.data-table tr:hover td { background: rgba(6,66,108,.03); }
+
+.signal-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border2); }
+.signal-item:last-child { border-bottom: none; }
+.signal-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.signal-title { font-size: 12px; font-weight: 700; margin-bottom: 3px; color: var(--text); }
+.signal-desc { font-size: 10px; color: var(--text2); line-height: 1.5; }
+.signal-footer { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; align-items: center; }
+
+.risk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.risk-cell {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 5px; padding: 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+}
+.risk-score-big { font-size: 30px; font-weight: 900; line-height: 1; }
+.risk-driver { font-size: 9px; color: var(--text2); margin-bottom: 3px; padding-left: 10px; position: relative; }
+.risk-driver::before { content: '▸'; position: absolute; left: 0; color: var(--navy); }
+
+/* ── MINERAL DETAIL MODAL ──────────────────────────────────── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: rgba(28,43,53,.45); backdrop-filter: blur(4px);
+  align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; width: min(780px, 95vw); max-height: 88vh;
+  overflow-y: auto; overflow-x: hidden;
+  box-shadow: 0 16px 48px rgba(6,66,108,.18);
+  display: flex; flex-direction: column;
+}
+.modal-box::-webkit-scrollbar { width: 4px; }
+.modal-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.modal-hdr {
+  display: flex; align-items: center; gap: 14px; padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+  background: rgba(255,255,255,.98);
+  border-radius: 10px 10px 0 0;
+}
+.modal-sym { font-size: 32px; font-weight: 900; line-height: 1; }
+.modal-name-wrap { flex: 1; }
+.modal-name { font-size: 16px; font-weight: 700; color: var(--text); }
+.modal-cat { font-size: 9px; color: var(--graph); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+.modal-close {
+  background: none; border: 1px solid var(--border); border-radius: 5px;
+  width: 28px; height: 28px; cursor: pointer; font-size: 14px;
+  color: var(--text2); display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.modal-close:hover { background: var(--red); color: #fff; border-color: var(--red); }
+.modal-stats-row {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 0;
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.modal-stat {
+  padding: 12px 16px; border-right: 1px solid var(--border2);
+  background: rgba(255,255,255,.6);
+}
+.modal-stat:last-child { border-right: none; }
+.modal-stat-lbl { font-size: 7.5px; color: var(--graph); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 4px; }
+.modal-stat-val { font-size: 14px; font-weight: 800; color: var(--text); }
+.modal-stat-sub { font-size: 8px; color: var(--text2); margin-top: 1px; }
+.modal-body { padding: 18px 20px 22px; }
+.modal-section-title {
+  font-size: 8px; font-weight: 700; letter-spacing: 2px; color: var(--text2);
+  text-transform: uppercase; margin-bottom: 12px;
+}
+.chart-wrap { width: 100%; overflow-x: auto; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.legend-item-c { display: flex; align-items: center; gap: 5px; font-size: 9px; color: var(--text2); }
+.legend-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.modal-uses { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border2); }
+.modal-uses-lbl { font-size: 7.5px; font-weight: 700; letter-spacing: 2px; color: var(--graph); text-transform: uppercase; margin-bottom: 6px; }
+.modal-uses-text { font-size: 10px; color: var(--text2); line-height: 1.6; }
+
+.reserves-section { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border2); }
+.reserves-hdr-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.reserves-col { }
+.reserves-col-lbl { font-size: 7.5px; font-weight: 700; letter-spacing: 2px; color: var(--graph); text-transform: uppercase; margin-bottom: 3px; }
+.reserves-col-val { font-size: 13px; font-weight: 800; color: var(--text); }
+.reserves-col-unit { font-size: 8.5px; color: var(--text2); margin-top: 2px; max-width: 240px; line-height: 1.4; }
+.reserves-life-val { font-size: 13px; font-weight: 800; color: var(--navy); }
+.reserves-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.reserves-bar-country { font-size: 9px; color: var(--text2); width: 96px; flex-shrink: 0; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.reserves-bar-track { flex: 1; height: 5px; background: var(--border2); border-radius: 3px; overflow: hidden; }
+.reserves-bar-fill { height: 100%; border-radius: 3px; transition: width .4s; }
+.reserves-bar-pct { font-size: 9px; color: var(--text2); width: 36px; flex-shrink: 0; }
+.reserves-source { font-size: 7px; color: var(--graph); margin-top: 10px; letter-spacing: 1px; text-transform: uppercase; }
+.reserves-null-msg { font-size: 10px; color: var(--text2); line-height: 1.7; font-style: italic; margin-bottom: 8px; }
+
+.mineral-card { cursor: pointer; }
+.mineral-card:hover { border-color: var(--navy) !important; }
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="glow1"></div>
+<div class="glow2"></div>
+
+<div class="app">
+
+  <!-- ══════════════ HEADER ══════════════ -->
+  <div class="header">
+    <div class="logo-wrap">
+      <svg class="logo-mark" viewBox="0 0 34 34" fill="none">
+        <rect width="34" height="34" rx="6" fill="#F8F4EF"/>
+        <rect x="0.75" y="0.75" width="32.5" height="32.5" rx="5.5" stroke="#06426C" stroke-width="1" stroke-opacity=".4"/>
+        <path d="M17 6 L28 28 L6 28 Z" fill="none" stroke="#9E2114" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="17" cy="14" r="2.5" fill="#9E2114"/>
+        <line x1="17" y1="16.5" x2="17" y2="24" stroke="#06426C" stroke-width="1.2" stroke-dasharray="2 2"/>
+      </svg>
+      <div>
+        <div class="logo-name"><span class="min">MIN</span><span class="ris">RIS</span></div>
+        <div class="logo-sub">Mineral Resource Intelligence &amp; Security</div>
+      </div>
+    </div>
+    <div class="hdr-stats">
+      <div class="hdr-stat"><div class="hdr-stat-val">20</div><div class="hdr-stat-lbl">MINERALS</div></div>
+      <div class="hdr-stat"><div class="hdr-stat-val">8</div><div class="hdr-stat-lbl">COUNTRIES</div></div>
+      <div class="hdr-stat"><div class="hdr-stat-val" id="hdr-hhi">5,121</div><div class="hdr-stat-lbl">AVG HHI</div></div>
+      <div class="hdr-stat"><div class="hdr-stat-val" style="color:var(--red);">11</div><div class="hdr-stat-lbl">CRITICAL</div></div>
+      <span class="badge badge-live pulse">● LIVE</span>
+    </div>
+  </div>
+
+  <!-- ══════════════ BODY ══════════════ -->
+  <div class="body">
+
+    <!-- ── LEFT NAV ──────────────────────────────────────── -->
+    <div class="left-nav">
+
+      <div class="nav-section">
+        <div class="nav-section-title">Intelligence</div>
+        <div class="nav-item active" data-panel="minerals" onclick="setActive('minerals')">
+          <span class="nav-icon">⬡</span>
+          <span class="nav-label">Mineral Intel</span>
+          <span class="nav-indicator"></span>
+        </div>
+        <div class="nav-item" data-panel="projects" onclick="setActive('projects')">
+          <span class="nav-icon">🏭</span>
+          <span class="nav-label">Projects</span>
+          <span class="nav-indicator"></span>
+        </div>
+        <div class="nav-item" data-panel="policy" onclick="setActive('policy')">
+          <span class="nav-icon">📋</span>
+          <span class="nav-label">Policy</span>
+          <span class="nav-indicator"></span>
+        </div>
+        <div class="nav-item" data-panel="signals" onclick="setActive('signals')">
+          <span class="nav-icon">📡</span>
+          <span class="nav-label">Signals</span>
+          <span class="nav-indicator"></span>
+        </div>
+        <div class="nav-item" data-panel="risk" onclick="setActive('risk')">
+          <span class="nav-icon">⚠</span>
+          <span class="nav-label">Risk Matrix</span>
+          <span class="nav-indicator"></span>
+        </div>
+      </div>
+
+      <div class="nav-divider"></div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Map Filter</div>
+        <span class="nav-chip active-filter" style="color:var(--navy);" onclick="filterMineral('all',this)">All minerals</span>
+        <span class="nav-chip" style="color:#3B82F6;" onclick="filterMineral('lithium',this)">⬡ Lithium</span>
+        <span class="nav-chip" style="color:#9E2114;" onclick="filterMineral('cobalt',this)">⬡ Cobalt</span>
+        <span class="nav-chip" style="color:#8B6614;" onclick="filterMineral('rare-earth',this)">⬡ Rare Earths</span>
+        <span class="nav-chip" style="color:#B85020;" onclick="filterMineral('nickel',this)">⬡ Nickel</span>
+        <span class="nav-chip" style="color:#6B7280;" onclick="filterMineral('tungsten',this)">⬡ Tungsten</span>
+        <span class="nav-chip" style="color:#4B5563;" onclick="filterMineral('graphite',this)">⬡ Graphite</span>
+        <span class="nav-chip" style="color:#1a6f9e;" onclick="filterMineral('gallium',this)">⬡ Gallium</span>
+        <span class="nav-chip" style="color:#5B8DB8;" onclick="filterMineral('germanium',this)">⬡ Germanium</span>
+      </div>
+
+      <div class="nav-divider"></div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Overview</div>
+      </div>
+      <div class="nav-kpis">
+        <div class="nav-kpi"><div class="nav-kpi-val">20</div><div class="nav-kpi-lbl">MINERALS</div></div>
+        <div class="nav-kpi"><div class="nav-kpi-val">8</div><div class="nav-kpi-lbl">COUNTRIES</div></div>
+        <div class="nav-kpi"><div class="nav-kpi-val" style="color:var(--red);">11</div><div class="nav-kpi-lbl">CRITICAL</div></div>
+        <div class="nav-kpi"><div class="nav-kpi-val">6</div><div class="nav-kpi-lbl">SIGNALS</div></div>
+      </div>
+
+      <div class="nav-source">
+        <div>WMD <span>2024</span></div>
+        <div>USGS <span>MYB 2023</span></div>
+        <div>Map <span>© CARTO</span></div>
+      </div>
+
+    </div>
+    <!-- /left-nav -->
+
+    <!-- ── CENTER ─────────────────────────────────────────── -->
+    <div class="center">
+
+      <!-- CANARY BANNER -->
+      <div class="canary-banner">
+        <div class="canary-title">CANARY <em>by</em> MINRIS</div>
+        <div class="canary-divider"></div>
+        <div class="canary-sub">Intelligence terminal for your critical mineral supply chain security</div>
+      </div>
+
+      <!-- MAP (CesiumJS 3D Globe — country markers from embedded COUNTRIES data) -->
+      <div class="map-section">
+        <div class="map-outer">
+          <div id="canary-globe"></div>
+          <div class="map-legend">
+            <div class="map-legend-title">EXPORT RISK</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#9E2114;"></div>Critical</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#B85020;"></div>High</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#8B6614;"></div>Medium</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#2A7A52;"></div>Low</div>
+          </div>
+        </div>
+      </div>
+      <!-- /map -->
+
+      <!-- Country detail strip -->
+      <div id="country-panel">
+        <div class="cp-inner">
+          <div class="cp-header">
+            <span class="cp-flag" id="cp-flag"></span>
+            <div>
+              <div class="cp-name" id="cp-name"></div>
+              <div class="cp-sub" id="cp-sub"></div>
+            </div>
+            <button class="cp-close" onclick="document.getElementById('country-panel').style.display='none'">✕</button>
+          </div>
+          <div class="cp-meta" id="cp-meta"></div>
+          <div class="cp-grid" id="cp-grid"></div>
+          <div id="cp-minerals"></div>
+        </div>
+      </div>
+
+      <!-- ── ACTIVE PANEL ZONE ──────────────────────────── -->
+      <div class="active-panel-zone">
+
+        <!-- Mineral Intel -->
+        <div class="apanel is-active" id="apanel-minerals">
+          <div class="apanel-hdr">
+            <span class="apanel-icon">⬡</span>
+            <span class="apanel-title">Mineral Intel</span>
+            <span class="apanel-stat">20 MINERALS · AVG HHI 5,121</span>
+          </div>
+          <div class="apanel-body">
+            <div class="minerals-grid" id="minerals-grid"></div>
+          </div>
+        </div>
+
+        <!-- Projects -->
+        <div class="apanel" id="apanel-projects">
+          <div class="apanel-hdr">
+            <span class="apanel-icon">🏭</span>
+            <span class="apanel-title">Projects &amp; Capacity</span>
+            <span class="apanel-stat">18 FACILITIES · 5 MINERALS</span>
+          </div>
+          <div class="apanel-body">
+            <div class="projects-grid" id="projects-grid"></div>
+          </div>
+        </div>
+
+        <!-- Policy Shocks -->
+        <div class="apanel" id="apanel-policy">
+          <div class="apanel-hdr">
+            <span class="apanel-icon">📋</span>
+            <span class="apanel-title">Policy Shocks</span>
+            <span class="apanel-stat">8 EVENTS · 3 ACTIVE</span>
+          </div>
+          <div class="apanel-body">
+            <table class="data-table">
+              <thead><tr><th>DATE</th><th>COUNTRY</th><th>MINERAL</th><th>EVENT</th><th>IMPACT</th><th>STATUS</th></tr></thead>
+              <tbody id="policy-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Signals -->
+        <div class="apanel" id="apanel-signals">
+          <div class="apanel-hdr">
+            <span class="apanel-icon">📡</span>
+            <span class="apanel-title">Intelligence Signals</span>
+            <span class="apanel-stat">7 ACTIVE · 2 CRITICAL</span>
+          </div>
+          <div class="apanel-body" id="signals-list"></div>
+        </div>
+
+        <!-- Risk Matrix -->
+        <div class="apanel" id="apanel-risk">
+          <div class="apanel-hdr">
+            <span class="apanel-icon">⚠</span>
+            <span class="apanel-title">Risk Matrix</span>
+            <span class="apanel-stat">AVG SCORE 8.2 / 10</span>
+          </div>
+          <div class="apanel-body">
+            <div class="risk-grid" id="risk-matrix"></div>
+          </div>
+        </div>
+
+      </div>
+      <!-- /active-panel-zone -->
+
+    </div>
+    <!-- /center -->
+
+    <!-- ── RIGHT WIDGETS ──────────────────────────────────── -->
+    <div class="right-widgets">
+
+      <div class="widget-card active" data-panel="minerals" onclick="setActive('minerals')">
+        <div class="wc-hdr">
+          <span class="wc-icon">⬡</span>
+          <span class="wc-title">Mineral Intel</span>
+          <span class="wc-arrow">→</span>
+        </div>
+        <div class="wc-sub">5 MINERALS · HHI CONCENTRATION</div>
+        <div id="w-minerals"></div>
+      </div>
+
+      <div class="widget-card" data-panel="projects" onclick="setActive('projects')">
+        <div class="wc-hdr">
+          <span class="wc-icon">🏭</span>
+          <span class="wc-title">Projects</span>
+          <span class="wc-arrow">→</span>
+        </div>
+        <div class="wc-sub">18 FACILITIES BY MINERAL</div>
+        <div id="w-projects"></div>
+      </div>
+
+      <div class="widget-card" data-panel="policy" onclick="setActive('policy')">
+        <div class="wc-hdr">
+          <span class="wc-icon">📋</span>
+          <span class="wc-title">Policy Shocks</span>
+          <span class="wc-arrow">→</span>
+        </div>
+        <div class="wc-sub">8 EVENTS · 3 ACTIVE</div>
+        <div id="w-policy"></div>
+      </div>
+
+      <div class="widget-card" data-panel="signals" onclick="setActive('signals')">
+        <div class="wc-hdr">
+          <span class="wc-icon">📡</span>
+          <span class="wc-title">Signals</span>
+          <span class="wc-arrow">→</span>
+        </div>
+        <div class="wc-sub">7 ACTIVE · 2 CRITICAL</div>
+        <div id="w-signals"></div>
+      </div>
+
+      <div class="widget-card" data-panel="risk" onclick="setActive('risk')">
+        <div class="wc-hdr">
+          <span class="wc-icon">⚠</span>
+          <span class="wc-title">Risk Matrix</span>
+          <span class="wc-arrow">→</span>
+        </div>
+        <div class="wc-sub">RISK SCORES / 10</div>
+        <div id="w-risk"></div>
+      </div>
+
+    </div>
+    <!-- /right-widgets -->
+
+  </div>
+  <!-- /body -->
+</div>
+<!-- /app -->
+
+<!-- ══════════════ MINERAL DETAIL MODAL ══════════════ -->
+<div class="modal-overlay" id="mineral-modal" onclick="if(event.target===this)closeMineralModal()">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div class="modal-sym" id="modal-sym"></div>
+      <div class="modal-name-wrap">
+        <div class="modal-name" id="modal-name"></div>
+        <div class="modal-cat" id="modal-cat"></div>
+      </div>
+      <span class="risk-badge" id="modal-risk-badge" style="font-size:10px;padding:3px 9px;"></span>
+      <button class="modal-close" onclick="closeMineralModal()">✕</button>
+    </div>
+    <div class="modal-stats-row" id="modal-stats-row"></div>
+    <div class="modal-body">
+      <div class="modal-section-title">Production by Country (metric tonnes)</div>
+      <div class="chart-wrap" id="modal-chart-wrap"></div>
+      <div class="chart-legend" id="modal-legend"></div>
+      <div class="reserves-section" id="modal-reserves"></div>
+      <div class="modal-uses">
+        <div class="modal-uses-lbl">Strategic Uses</div>
+        <div class="modal-uses-text" id="modal-uses"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── MERCATOR PROJECTION ─────────────────────────────────────────────
+const OX = 33.33, OY = 336.5;
+function svgXY(lat, lon) {
+  const mapX = (lon + 180) / 360 * 1200;
+  const s    = Math.sin(lat * Math.PI / 180);
+  const mapY = (1 - Math.log((1 + s) / (1 - s)) / (2 * Math.PI)) / 2 * 1200;
+  return [mapX - OX, mapY - OY];
+}
+function ringToD(ring) {
+  return ring.map((p, i) => {
+    const [x, y] = svgXY(p[1], p[0]);
+    return (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1);
+  }).join('') + 'Z';
+}
+
+// ─── DATA ────────────────────────────────────────────────────────────
+const MINERALS = [
+  { id:'rare-earth', name:'Rare Earth', symbol:'REE', category:'Critical Technology', annual_production_mt:398008,
+    tp1:'China', tp1p:67.8, tp1f:'🇨🇳', tp2:'United States', tp2p:11.4, tp2f:'🇺🇸', tp3:'Myanmar', tp3p:9.9, tp3f:'🇲🇲',
+    hhi:4861, risk_score:4.9, risk_level:'High', proc:'China', proc_pct:67,
+    demand_pct:8.5, uses:'Magnets, EVs, Wind turbines, Defense electronics, Catalysts', color:'#8B6614',
+    reserves_mt:89000000, reserves_unit:'t REO (rare earth oxide)', reserve_life:224, rh1:'China', rh1p:49.4, rh2:'Vietnam', rh2p:24.7, rh3:'Brazil', rh3p:23.6, reserves_source:'USGS MCS 2025' },
+  { id:'platinum-group-metals', name:'Platinum Group Metals', symbol:'PGM', category:'Precious Metals', annual_production_mt:388,
+    tp1:'South Africa', tp1p:51.8, tp1f:'🇿🇦', tp2:'Russia', tp2p:27.4, tp2f:'🇷🇺', tp3:'Zimbabwe', tp3p:8.9, tp3f:'🇿🇼',
+    hhi:3568, risk_score:3.6, risk_level:'High', proc:'South Africa', proc_pct:51,
+    demand_pct:4.2, uses:'Catalytic converters, Hydrogen fuel cells, Electronics, Jewelry', color:'#A8A9AD',
+    reserves_mt:69000, reserves_unit:'t PGM content (all 6 metals)', reserve_life:178, rh1:'South Africa', rh1p:91.3, rh2:'Russia', rh2p:5.7, rh3:'Zimbabwe', rh3p:1.7, reserves_source:'USGS MCS 2025' },
+  { id:'cobalt', name:'Cobalt', symbol:'Co', category:'Battery Metals', annual_production_mt:268755,
+    tp1:'Congo, D.R.', tp1p:74.5, tp1f:'🇨🇩', tp2:'Indonesia', tp2p:11.5, tp2f:'🇮🇩', tp3:'Russia', tp3p:3.2, tp3f:'🇷🇺',
+    hhi:5705, risk_score:5.7, risk_level:'Critical', proc:'Congo, D.R.', proc_pct:74,
+    demand_pct:12.0, uses:'EV batteries, Superalloys, Magnets, Aerospace', color:'#9E2114',
+    reserves_mt:8300000, reserves_unit:'t cobalt content', reserve_life:31, rh1:'DRC', rh1p:43.4, rh2:'Australia', rh2p:16.9, rh3:'Philippines', rh3p:3.4, reserves_source:'USGS MCS 2025' },
+  { id:'gallium', name:'Gallium', symbol:'Ga', category:'Semiconductor Metals', annual_production_mt:987,
+    tp1:'China', tp1p:98.7, tp1f:'🇨🇳', tp2:'Russia', tp2p:0.7, tp2f:'🇷🇺', tp3:'Japan', tp3p:0.3, tp3f:'🇯🇵',
+    hhi:9738, risk_score:9.7, risk_level:'Critical', proc:'China', proc_pct:98,
+    demand_pct:6.0, uses:'Semiconductors, 5G, Solar panels, LEDs, Radar', color:'#1a6f9e',
+    reserves_mt:null, reserves_unit:'Byproduct of Al/Zn processing — no independent reserve estimate', reserve_life:null, rh1:null, rh1p:null, rh2:null, rh2p:null, rh3:null, rh3p:null, reserves_source:'USGS MCS 2025' },
+  { id:'lithium', name:'Lithium', symbol:'Li', category:'Battery Metals', annual_production_mt:601914,
+    tp1:'Australia', tp1p:38.2, tp1f:'🇦🇺', tp2:'China', tp2p:21.0, tp2f:'🇨🇳', tp3:'Chile', tp3p:20.5, tp3f:'🇨🇱',
+    hhi:2442, risk_score:2.4, risk_level:'Medium', proc:'Australia', proc_pct:38,
+    demand_pct:22.0, uses:'EV batteries, Grid storage, Consumer electronics, Pharmaceuticals', color:'#3B82F6',
+    reserves_mt:28000000, reserves_unit:'t lithium content', reserve_life:100, rh1:'Chile', rh1p:33.2, rh2:'Australia', rh2p:28.2, rh3:'Argentina', rh3p:13.6, reserves_source:'USGS MCS 2025' },
+  { id:'nickel', name:'Nickel', symbol:'Ni', category:'Battery Metals', annual_production_mt:3699741,
+    tp1:'Indonesia', tp1p:62.2, tp1f:'🇮🇩', tp2:'Philippines', tp2p:9.6, tp2f:'🇵🇭', tp3:'Russia', tp3p:5.9, tp3f:'🇷🇺',
+    hhi:4039, risk_score:4.0, risk_level:'High', proc:'Indonesia', proc_pct:62,
+    demand_pct:6.5, uses:'Stainless steel, EV batteries, Superalloys, Electronics', color:'#B85020',
+    reserves_mt:100000000, reserves_unit:'t nickel content', reserve_life:27, rh1:'Indonesia', rh1p:55.0, rh2:'Australia', rh2p:19.0, rh3:'Russia', rh3p:7.6, reserves_source:'USGS MCS 2025' },
+  { id:'tungsten', name:'Tungsten', symbol:'W', category:'Specialty Metals', annual_production_mt:75416,
+    tp1:'China', tp1p:77.9, tp1f:'🇨🇳', tp2:'Vietnam', tp2p:7.1, tp2f:'🇻🇳', tp3:'Korea, North', tp3p:2.5, tp3f:'🌍',
+    hhi:6146, risk_score:6.1, risk_level:'Critical', proc:'China', proc_pct:77,
+    demand_pct:3.5, uses:'Cutting tools, Armor-piercing, Electronics, Aerospace alloys', color:'#6B7280',
+    reserves_mt:4000000, reserves_unit:'t tungsten (W) content', reserve_life:53, rh1:'China', rh1p:45.0, rh2:'Vietnam', rh2p:23.8, rh3:'Russia', rh3p:10.0, reserves_source:'USGS MCS 2025' },
+  { id:'antimony', name:'Antimony', symbol:'Sb', category:'Specialty Metals', annual_production_mt:141231,
+    tp1:'China', tp1p:32.7, tp1f:'🇨🇳', tp2:'Tajikistan', tp2p:19.5, tp2f:'🌍', tp3:'Myanmar', tp3p:18.6, tp3f:'🇲🇲',
+    hhi:2128, risk_score:2.1, risk_level:'Medium', proc:'China', proc_pct:32,
+    demand_pct:5.0, uses:'Flame retardants, Lead-acid batteries, Semiconductors, Ammunition', color:'#7C6F5A',
+    reserves_mt:2100000, reserves_unit:'t antimony (Sb) content', reserve_life:15, rh1:'Russia', rh1p:35.2, rh2:'Tajikistan', rh2p:26.2, rh3:'China', rh3p:22.9, reserves_source:'USGS MCS 2025' },
+  { id:'bismuth', name:'Bismuth', symbol:'Bi', category:'Specialty Metals', annual_production_mt:7349,
+    tp1:'China', tp1p:81.6, tp1f:'🇨🇳', tp2:'Vietnam', tp2p:6.7, tp2f:'🇻🇳', tp3:'Japan', tp3p:6.1, tp3f:'🇯🇵',
+    hhi:6764, risk_score:6.8, risk_level:'Critical', proc:'China', proc_pct:81,
+    demand_pct:2.0, uses:'Pharmaceuticals, Cosmetics, Low-melt alloys, Nuclear shielding', color:'#C09050',
+    reserves_mt:null, reserves_unit:'Byproduct of Pb/Cu/Ag smelting — no independent reserve estimate', reserve_life:null, rh1:null, rh1p:null, rh2:null, rh2p:null, rh3:null, rh3p:null, reserves_source:'USGS MCS 2025' },
+  { id:'germanium', name:'Germanium', symbol:'Ge', category:'Semiconductor Metals', annual_production_mt:150,
+    tp1:'China', tp1p:93.3, tp1f:'🇨🇳', tp2:'Russia', tp2p:3.3, tp2f:'🇷🇺', tp3:'Japan', tp3p:1.3, tp3f:'🇯🇵',
+    hhi:8726, risk_score:8.7, risk_level:'Critical', proc:'China', proc_pct:93,
+    demand_pct:7.0, uses:'Fiber optics, IR optics, Solar cells, Night vision, Semiconductors', color:'#5B8DB8',
+    reserves_mt:null, reserves_unit:'Byproduct of Zn/coal processing — no independent reserve estimate', reserve_life:null, rh1:null, rh1p:null, rh2:null, rh2p:null, rh3:null, rh3p:null, reserves_source:'USGS MCS 2025' },
+  { id:'graphite', name:'Graphite', symbol:'C', category:'Battery Materials', annual_production_mt:1685817,
+    tp1:'China', tp1p:75.9, tp1f:'🇨🇳', tp2:'India', tp2p:6.9, tp2f:'🇮🇳', tp3:'Madagascar', tp3p:4.9, tp3f:'🇲🇬',
+    hhi:5861, risk_score:5.9, risk_level:'Critical', proc:'China', proc_pct:75,
+    demand_pct:15.0, uses:'EV battery anodes, Lubricants, Refractories, Nuclear reactors', color:'#4B5563',
+    reserves_mt:330000000, reserves_unit:'t natural graphite', reserve_life:196, rh1:'Turkey', rh1p:27.3, rh2:'China', rh2p:22.1, rh3:'Brazil', rh3p:21.2, reserves_source:'USGS MCS 2025' },
+  { id:'manganese', name:'Manganese', symbol:'Mn', category:'Steel & Battery', annual_production_mt:18818965,
+    tp1:'South Africa', tp1p:39.2, tp1f:'🇿🇦', tp2:'Gabon', tp2p:22.1, tp2f:'🇬🇦', tp3:'Australia', tp3p:8.0, tp3f:'🇦🇺',
+    hhi:2221, risk_score:2.2, risk_level:'Medium', proc:'South Africa', proc_pct:39,
+    demand_pct:5.5, uses:'Steel production, EV batteries (NMC), Aluminum alloys, Fertilizers', color:'#7B4E8C',
+    reserves_mt:1500000000, reserves_unit:'t ore', reserve_life:80, rh1:'South Africa', rh1p:42.7, rh2:'Australia', rh2p:20.7, rh3:'Brazil', rh3p:18.0, reserves_source:'USGS MCS 2025' },
+  { id:'niobium', name:'Niobium', symbol:'Nb', category:'Specialty Metals', annual_production_mt:123206,
+    tp1:'Brazil', tp1p:92.4, tp1f:'🇧🇷', tp2:'Canada', tp2p:5.6, tp2f:'🇨🇦', tp3:'Congo, D.R.', tp3p:1.0, tp3f:'🇨🇩',
+    hhi:8579, risk_score:8.6, risk_level:'Critical', proc:'Brazil', proc_pct:92,
+    demand_pct:6.0, uses:'High-strength steel, Superconductors, Jet engines, Medical devices', color:'#4A7A8C',
+    reserves_mt:17000000, reserves_unit:'t niobium (Nb) content', reserve_life:138, rh1:'Brazil', rh1p:70.6, rh2:'Canada', rh2p:27.1, rh3:'Australia', rh3p:1.2, reserves_source:'USGS MCS 2025' },
+  { id:'silicon', name:'Silicon', symbol:'Si', category:'Semiconductor Materials', annual_production_mt:9805000,
+    tp1:'China', tp1p:83.6, tp1f:'🇨🇳', tp2:'Russia', tp2p:6.1, tp2f:'🇷🇺', tp3:'Norway', tp3p:3.1, tp3f:'🇳🇴',
+    hhi:7054, risk_score:7.1, risk_level:'Critical', proc:'China', proc_pct:67,
+    demand_pct:8.0, uses:'Semiconductors, Solar panels, Aluminum alloys, Silicones', color:'#64748B',
+    reserves_mt:null, reserves_unit:'Silica/quartz resources are effectively unlimited — constraint is energy, not material availability', reserve_life:null, rh1:null, rh1p:null, rh2:null, rh2p:null, rh3:null, rh3p:null, reserves_source:'USGS MCS 2025' },
+  { id:'tantalum', name:'Tantalum', symbol:'Ta', category:'Specialty Metals', annual_production_mt:2776,
+    tp1:'Congo, D.R.', tp1p:41.1, tp1f:'🇨🇩', tp2:'Rwanda', tp2p:19.6, tp2f:'🇷🇼', tp3:'Brazil', tp3p:14.4, tp3f:'🇧🇷',
+    hhi:2408, risk_score:2.4, risk_level:'Medium', proc:'Congo, D.R.', proc_pct:41,
+    demand_pct:4.5, uses:'Capacitors, Aerospace alloys, Medical implants, Electronics', color:'#6B4A7C',
+    reserves_mt:180000, reserves_unit:'t tantalum (Ta) content', reserve_life:65, rh1:'DRC', rh1p:53.9, rh2:'Australia', rh2p:27.2, rh3:'Ethiopia', rh3p:6.7, reserves_source:'USGS MCS 2025' },
+  { id:'titanium', name:'Titanium', symbol:'Ti', category:'Structural Metals', annual_production_mt:9005073,
+    tp1:'China', tp1p:36.2, tp1f:'🇨🇳', tp2:'Mozambique', tp2p:21.1, tp2f:'🇲🇿', tp3:'South Africa', tp3p:11.3, tp3f:'🇿🇦',
+    hhi:1986, risk_score:2.0, risk_level:'Medium', proc:'China', proc_pct:36,
+    demand_pct:4.0, uses:'Aerospace, Defense armor, Medical implants, Pigments', color:'#708090',
+    reserves_mt:800000000, reserves_unit:'t TiO2 content (ilmenite + rutile)', reserve_life:111, rh1:'China', rh1p:41.0, rh2:'Australia', rh2p:27.0, rh3:'India', rh3p:9.0, reserves_source:'USGS MCS 2025' },
+  { id:'vanadium', name:'Vanadium', symbol:'V', category:'Specialty Metals', annual_production_mt:112506,
+    tp1:'China', tp1p:68.5, tp1f:'🇨🇳', tp2:'Russia', tp2p:18.7, tp2f:'🇷🇺', tp3:'South Africa', tp3p:7.1, tp3f:'🇿🇦',
+    hhi:5127, risk_score:5.1, risk_level:'Critical', proc:'China', proc_pct:68,
+    demand_pct:9.0, uses:'High-strength steel, Grid-scale batteries, Aerospace alloys, Chemicals', color:'#5A6E3C',
+    reserves_mt:24000000, reserves_unit:'t vanadium (V) content', reserve_life:213, rh1:'Russia', rh1p:58.3, rh2:'China', rh2p:22.5, rh3:'Australia', rh3p:11.7, reserves_source:'USGS MCS 2025' },
+  { id:'copper', name:'Copper', symbol:'Cu', category:'Base Metals', annual_production_mt:22911145,
+    tp1:'Chile', tp1p:24.0, tp1f:'🇨🇱', tp2:'Congo, D.R.', tp2p:13.5, tp2f:'🇨🇩', tp3:'Peru', tp3p:11.9, tp3f:'🇵🇪',
+    hhi:1088, risk_score:1.1, risk_level:'Low', proc:'Chile', proc_pct:24,
+    demand_pct:3.5, uses:'Electrical wiring, EVs, Renewable energy, Electronics, Plumbing', color:'#B87333',
+    reserves_mt:890000000, reserves_unit:'t copper (Cu) content', reserve_life:39, rh1:'Chile', rh1p:21.3, rh2:'Australia', rh2p:10.4, rh3:'Peru', rh3p:10.2, reserves_source:'USGS MCS 2025' },
+  { id:'magnesium', name:'Magnesium', symbol:'Mg', category:'Structural Metals', annual_production_mt:990000,
+    tp1:'China', tp1p:87.9, tp1f:'🇨🇳', tp2:'Russia', tp2p:3.0, tp2f:'🇷🇺', tp3:'Israel', tp3p:2.8, tp3f:'🌍',
+    hhi:7749, risk_score:7.7, risk_level:'Critical', proc:'China', proc_pct:88,
+    demand_pct:5.0, uses:'Aerospace alloys, Automotive lightweighting, Electronics, Pharmaceuticals', color:'#6B7C6B',
+    reserves_mt:null, reserves_unit:'Dolomite/magnesite/seawater resources are effectively unlimited', reserve_life:null, rh1:null, rh1p:null, rh2:null, rh2p:null, rh3:null, rh3p:null, reserves_source:'USGS MCS 2025' },
+  { id:'tellurium', name:'Tellurium', symbol:'Te', category:'Semiconductor Metals', annual_production_mt:958,
+    tp1:'China', tp1p:78.3, tp1f:'🇨🇳', tp2:'Japan', tp2p:7.3, tp2f:'🇯🇵', tp3:'Russia', tp3p:5.2, tp3f:'🇷🇺',
+    hhi:6241, risk_score:6.2, risk_level:'Critical', proc:'China', proc_pct:78,
+    demand_pct:10.0, uses:'Thin-film solar cells (CdTe), Thermoelectrics, Steel, Semiconductors', color:'#7A5C7A',
+    reserves_mt:null, reserves_unit:'Byproduct of Cu refining — ~31,000 t estimated across copper deposits globally', reserve_life:null, rh1:null, rh1p:null, rh2:null, rh2p:null, rh3:null, rh3p:null, reserves_source:'USGS MCS 2025' },
+];
+
+const COUNTRIES = [
+  { id:'australia', name:'Australia', flag:'🇦🇺', region:'Indo-Pacific', lon:134, lat:-25,
+    risk:'Low', stability:'Very High', gov:8.8, bloc:'Five Eyes / AUKUS',
+    key_risk:'Geographic distance, China trade dependency', minerals:['rare-earth','lithium','nickel','manganese','tantalum','titanium','copper'], role:'Major Producer' },
+  { id:'canada', name:'Canada', flag:'🇨🇦', region:'North America', lon:-96, lat:56,
+    risk:'Low', stability:'Very High', gov:9.0, bloc:'Five Eyes / NATO',
+    key_risk:'Infrastructure gaps in northern mining regions', minerals:['platinum-group-metals','nickel','niobium','titanium','tellurium'], role:'Major Producer' },
+  { id:'china', name:'China', flag:'🇨🇳', region:'East Asia', lon:105, lat:35,
+    risk:'Critical', stability:'High', gov:4.2, bloc:'Non-Aligned / SCO',
+    key_risk:'Export controls, geopolitical leverage, processing monopoly', minerals:['rare-earth','gallium','lithium','nickel','tungsten','antimony','bismuth','germanium','graphite','manganese','silicon','tantalum','titanium','vanadium','copper','magnesium','tellurium'], role:'Dominant Producer & Processor' },
+  { id:'eu', name:'EU', flag:'🇪🇺', region:'Europe', lon:10, lat:51,
+    risk:'Low', stability:'Very High', gov:8.2, bloc:'EU / NATO',
+    key_risk:'Heavy import dependency, China exposure for processing', minerals:['tungsten','copper','tellurium'], role:'Major Consumer & Processor' },
+  { id:'india', name:'India', flag:'🇮🇳', region:'South Asia', lon:80, lat:20,
+    risk:'Medium', stability:'Medium', gov:5.8, bloc:'Quad',
+    key_risk:'Export restrictions, regulatory unpredictability', minerals:['graphite','manganese'], role:'Emerging Producer' },
+  { id:'japan', name:'Japan', flag:'🇯🇵', region:'East Asia', lon:138, lat:36,
+    risk:'Low', stability:'Very High', gov:8.7, bloc:'Quad / US Alliance',
+    key_risk:'Almost zero domestic production, extreme import dependency', minerals:['bismuth','tellurium'], role:'Major Consumer & Refiner' },
+  { id:'uk', name:'UK', flag:'🇬🇧', region:'Europe', lon:-2, lat:54,
+    risk:'Low', stability:'Very High', gov:8.5, bloc:'Five Eyes / AUKUS',
+    key_risk:'Minimal domestic production, dependent on allies', minerals:[], role:'Consumer & Financier' },
+  { id:'us', name:'US', flag:'🇺🇸', region:'North America', lon:-96, lat:38,
+    risk:'Low', stability:'High', gov:7.8, bloc:'Five Eyes / NATO / Quad',
+    key_risk:'Processing deficit, China REE dependency, offshored refining', minerals:['rare-earth','platinum-group-metals','copper'], role:'Major Consumer & Producer' },
+];
+
+const COUNTRY_SHAPES = {
+  australia: [[[114,-22],[115,-24],[115,-31],[116,-34],[118,-36],[120,-35],[124,-34],[128,-34],[130,-33],[132,-34],[134,-33],[136,-35],[138,-36],[140,-36],[142,-38],[146,-38],[148,-38],[150,-37],[152,-27],[153,-25],[153,-22],[150,-18],[148,-18],[144,-15],[143,-14],[140,-17],[136,-12],[132,-11],[130,-12],[128,-16],[126,-14],[124,-15],[122,-18],[120,-20],[118,-20],[116,-21],[114,-22]]],
+  canada: [[[-52,47],[-56,47],[-60,46],[-64,44],[-66,44],[-70,44],[-74,44],[-76,44],[-80,44],[-82,42],[-84,44],[-86,46],[-88,48],[-92,48],[-96,49],[-100,49],[-104,49],[-110,49],[-114,49],[-120,49],[-124,49],[-128,54],[-130,54],[-132,54],[-136,58],[-138,59],[-140,60],[-138,60],[-136,62],[-132,64],[-130,66],[-128,70],[-120,70],[-110,72],[-100,74],[-90,74],[-80,73],[-70,68],[-64,64],[-60,60],[-56,58],[-54,54],[-52,52],[-52,47]]],
+  china: [[[75,40],[78,42],[80,44],[86,48],[98,50],[103,52],[108,50],[115,47],[120,52],[125,50],[130,48],[130,42],[128,38],[126,35],[125,32],[122,30],[121,25],[115,20],[110,18],[108,22],[106,22],[104,22],[103,24],[100,22],[98,24],[96,28],[92,28],[90,28],[86,26],[84,28],[80,30],[78,36],[74,38],[75,40]]],
+  eu: [[[-5,44],[-2,47],[0,47],[2,47],[4,47],[6,46],[7,47],[7,44],[2,43],[-2,43],[-5,43],[-5,44]],[[6,47],[8,47],[10,48],[14,48],[16,48],[14,52],[12,52],[8,54],[6,52],[6,50],[6,47]],[[-9,36],[-6,36],[-1,36],[3,37],[3,41],[0,44],[-2,44],[-4,44],[-9,42],[-9,38],[-9,36]],[[7,44],[10,44],[14,44],[14,42],[16,38],[15,37],[14,40],[12,44],[10,44],[7,44]],[[5,56],[8,56],[10,57],[12,56],[10,55],[8,55],[14,54],[18,55],[20,57],[22,60],[24,60],[26,66],[28,70],[25,72],[18,70],[15,72],[10,72],[5,70],[5,65],[5,60],[5,56]]],
+  india: [[[68,24],[70,22],[72,20],[74,18],[76,12],[78,10],[80,10],[80,14],[82,14],[84,20],[86,22],[88,24],[90,26],[90,28],[88,28],[86,26],[84,28],[82,28],[80,30],[78,32],[76,34],[74,34],[72,34],[70,34],[68,28],[68,24]]],
+  japan: [[[130,31],[132,33],[134,34],[136,36],[138,36],[140,38],[142,40],[144,44],[144,45],[142,44],[140,42],[138,40],[136,36],[134,34],[132,34],[130,33],[130,31]],[[132,34],[134,34],[136,36],[138,38],[140,40],[140,36],[138,34],[136,34],[134,34],[132,34]]],
+  uk: [[[-6,50],[-3,50],[-1,51],[1,52],[1,53],[-1,54],[-2,54],[-3,54],[-4,56],[-5,56],[-6,58],[-4,58],[-3,58],[-2,57],[-2,56],[-4,54],[-3,54],[-2,52],[-3,51],[-5,50],[-6,50]]],
+  us: [[[-67,44],[-70,42],[-74,41],[-75,38],[-76,35],[-80,31],[-80,27],[-81,25],[-83,29],[-85,30],[-87,30],[-88,30],[-89,29],[-91,29],[-93,30],[-97,26],[-97,30],[-94,36],[-90,36],[-88,38],[-87,42],[-83,46],[-82,45],[-79,43],[-76,44],[-76,45],[-72,45],[-70,47],[-67,47],[-67,44]]],
+};
+
+// ─── PRODUCTION TIME-SERIES (WMD 2024) ───────────────────────────────
+const TIMESERIES = {"rare-earth":{"years":[2020,2021,2022,2023,2024],"series":{"China":[140000,168000,210000,255000,270000],"United States":[38503,42413,42499,41557,45493],"Myanmar":[21000,27100,17550,56850,39400],"Australia":[19440,21970,17660,20280,20100],"Malaysia":[10,30,270,3340,5120],"Others":[10939,9990,11548,17194,17895]}},"platinum-group-metals":{"years":[2020,2021,2022,2023,2024],"series":{"South Africa":[178,226,198,200,201],"Russia":[104,103,100,105,106],"Zimbabwe":[28,27,30,35,35],"Canada":[16,20,19,20,25],"United States":[19,18,13,13,13],"Others":[7,8,8,8,8]}},"cobalt":{"years":[2020,2021,2022,2023,2024],"series":{"Congo, D.R.":[86591,93144,115371,140121,200253],"Indonesia":[1000,2100,9600,18900,30920],"Russia":[9700,8000,9200,8200,8600],"Australia":[5631,5232,5857,5137,4773],"Canada":[4069,3953,3534,3260,3546],"Others":[22692,20174,21535,23730,20663]}},"gallium":{"years":[2020,2021,2022,2023,2024],"series":{"China":[290,420,606,701,974],"Russia":[5,5,5,6,7],"Japan":[3,3,3,3,3],"Korea, South":[2,2,2,3,3],"Others":[4,1,0,0,0]}},"lithium":{"years":[2020,2021,2022,2023,2024],"series":{"Australia":[89300,113600,150300,204200,230000],"China":[28800,30500,57900,106300,126700],"Chile":[49730,65060,110350,113200,123300],"Zimbabwe":[860,1670,3540,33900,51500],"Argentina":[12620,12870,14210,18610,29700],"Others":[5690,11026,16895,23526,40714]}},"nickel":{"years":[2020,2021,2022,2023,2024],"series":{"Indonesia":[816700,1173200,1593400,2028800,2300000],"Philippines":[328911,386359,345200,385965,354132],"Russia":[237000,202100,225900,210960,217000],"Canada":[168214,156501,124471,121511,132429],"New Caledonia":[204151,192458,207069,239269,115510],"Others":[744990,752840,751226,702075,580670]}},"tungsten":{"years":[2020,2021,2022,2023,2024],"series":{"China":[71450,68660,65620,65980,58760],"Vietnam":[5970,6220,6320,5820,5390],"Korea, North":[410,50,1520,1600,1870],"Bolivia":[1347,1563,1358,1505,1687],"Russia":[2274,2143,1846,1530,1580],"Others":[3640,4716,4610,4960,6129]}},"antimony":{"years":[2020,2021,2022,2023,2024],"series":{"China":[60995,41480,39000,41000,46223],"Tajikistan":[24070,24110,21820,22350,27500],"Myanmar":[6600,2870,4190,3050,26290],"Russia":[17532,9750,4391,37880,24670],"Bolivia":[2629,3084,3453,3884,4817],"Others":[8627,11247,18741,9269,11731]}},"bismuth":{"years":[2020,2021,2022,2023,2024],"series":{"China":[7500,8000,7500,8000,6000],"Vietnam":[993,2067,1938,1148,492],"Japan":[570,478,470,430,450],"Peru":[74,247,251,304,265],"Kazakhstan":[270,250,101,100,130],"Others":[106,74,6,58,12]}},"germanium":{"years":[2020,2021,2022,2023,2024],"series":{"China":[86,132,130,154,140],"Russia":[5,5,5,5,5],"Japan":[2,2,2,2,2],"United States":[2,2,2,2,2],"Congo, D.R.":[0,0,0,0,1],"Others":[1,1,0,0,0]}},"graphite":{"years":[2020,2021,2022,2023,2024],"series":{"China":[1090000,1189000,1161000,1208000,1280000],"India":[35386,41983,91017,129700,116382],"Madagascar":[61405,127562,114634,58964,83100],"Brazil":[67020,78555,72780,56053,52215],"Tanzania":[2490,3230,7270,13475,41431],"Others":[134545,210110,287972,199103,112689]}},"manganese":{"years":[2020,2021,2022,2023,2024],"series":{"South Africa":[6029368,7065750,7090400,7058600,7369800],"Gabon":[3709100,4228900,4522700,4386300,4158300],"Australia":[3357500,3277460,3044900,2920850,1497770],"Ghana":[660100,934200,919800,870500,1452720],"India":[838800,911300,887700,1056700,1130700],"Others":[5029066,4160818,3773758,3718839,3209675]}},"niobium":{"years":[2020,2021,2022,2023,2024],"series":{"Brazil":[85572,112755,109287,109578,113903],"Canada":[6400,7650,6800,6700,6900],"Congo, D.R.":[565,810,1030,810,1280],"Russia":[617,648,549,505,456],"Rwanda":[160,160,195,310,360],"Others":[194,221,230,280,307]}},"silicon":{"years":[2015,2016,2017,2018,2019,2020,2021,2022,2023],"series":{"China":[6200000,6400000,6800000,7200000,7500000,7800000,8000000,8200000,8200000],"Russia":[600000,580000,560000,580000,600000,600000,610000,600000,600000],"Norway":[320000,310000,300000,290000,300000,300000,300000,300000,300000],"Brazil":[200000,220000,240000,260000,270000,280000,285000,285000,285000],"United States":[110000,110000,110000,110000,110000,110000,110000,110000,110000],"Others":[300000,280000,280000,260000,230000,220000,210000,220000,220000]}},"tantalum":{"years":[2020,2021,2022,2023,2024],"series":{"Congo, D.R.":[600,720,920,720,1140],"Rwanda":[240,245,300,475,545],"Brazil":[300,350,350,380,400],"Ethiopia":[41,64,90,120,210],"Nigeria":[80,160,150,190,190],"Others":[444,436,308,316,291]}},"titanium":{"years":[2020,2021,2022,2023,2024],"series":{"China":[2911800,2856650,3144000,3247000,3261400],"Mozambique":[874000,1126800,1387200,1829500,1902900],"South Africa":[1000000,838000,1033000,998000,1014000],"Australia":[830800,624100,545000,536500,489500],"Canada":[480000,440000,560000,505000,420000],"Others":[2457399,2667571,2297078,1923962,1917273]}},"vanadium":{"years":[2020,2021,2022,2023,2024],"series":{"China":[69960,74100,78100,81600,77100],"Russia":[19533,20058,21000,20000,21000],"South Africa":[8584,8799,8872,8667,8040],"Brazil":[7582,7212,7249,6508,6316],"India":[100,100,50,50,50],"Others":[17,0,0,0,0]}},"copper":{"years":[2020,2021,2022,2023,2024],"series":{"Chile":[5733100,5624900,5330400,5250400,5505890],"Congo, D.R.":[1712964,1924374,2394630,2842022,3100234],"Peru":[2150126,2326035,2445271,2755244,2736237],"China":[1942000,1964400,1925600,1830000,1842900],"United States":[1200000,1230000,1230000,1130000,1050000],"Others":[8317967,8352854,8662202,8596726,8675884]}},"magnesium":{"years":[2015,2016,2017,2018,2019,2020,2021,2022],"series":{"China":[800000,820000,840000,860000,870000,870000,870000,870000],"Russia":[28000,29000,30000,30000,30000,30000,30000,30000],"Israel":[24000,25000,26000,27000,28000,28000,28000,28000],"Kazakhstan":[18000,18000,19000,20000,20000,20000,20000,20000],"Brazil":[12000,13000,14000,15000,15000,15000,15000,15000],"Others":[80000,75000,71000,68000,27000,27000,27000,27000]}},"tellurium":{"years":[2020,2021,2022,2023,2024],"series":{"China":[260,530,500,725,750],"Japan":[70,68,68,65,70],"Russia":[55,60,40,50,50],"Sweden":[42,41,33,36,46],"Canada":[23,25,24,27,27],"Others":[9,18,16,14,15]}}};
+
+const CHART_COLORS = ['#06426C','#9E2114','#2A7A52','#B85020','#8B6614','#5B8DB8','#7B4E8C','#C09050','#4A7A8C','#6B7280'];
+
+const PROJECTS = [
+  {mineral:'Cobalt',operator:'Glencore',country:'DRC',facility:'Katanga Mining Complex',type:'Mine',cap:28000,units:'t Co/yr',year:2023},
+  {mineral:'Cobalt',operator:'CMOC Group',country:'DRC',facility:'Tenke Fungurume',type:'Mine',cap:24000,units:'t Co/yr',year:2023},
+  {mineral:'Cobalt',operator:'Glencore',country:'DRC',facility:'Mutanda Mine',type:'Mine',cap:20000,units:'t Co/yr',year:2023},
+  {mineral:'Cobalt',operator:'ERG',country:'DRC',facility:'Boss Mining',type:'Mine',cap:6000,units:'t Co/yr',year:2023},
+  {mineral:'Cobalt',operator:'Vale',country:'Canada',facility:'Thompson Operations',type:'Mine',cap:2000,units:'t Co/yr',year:2023},
+  {mineral:'Lithium',operator:'Albemarle',country:'Australia',facility:'Greenbushes (Talison)',type:'Mine',cap:180000,units:'t LCE/yr',year:2023},
+  {mineral:'Lithium',operator:'SQM',country:'Chile',facility:'Salar de Atacama',type:'Mine',cap:120000,units:'t LCE/yr',year:2023},
+  {mineral:'Lithium',operator:'Pilbara Minerals',country:'Australia',facility:'Pilgangoora',type:'Mine',cap:90000,units:'t spodumene/yr',year:2023},
+  {mineral:'Lithium',operator:'Albemarle / Rockwood',country:'Chile',facility:'La Negra II',type:'Refinery',cap:40000,units:'t LCE/yr',year:2023},
+  {mineral:'Nickel',operator:'Vale Indonesia',country:'Indonesia',facility:'PT Sorowako',type:'Mine',cap:75000,units:'t Ni/yr',year:2023},
+  {mineral:'Nickel',operator:'Norilsk Nickel',country:'Russia',facility:'Norilsk Complex',type:'Smelter',cap:215000,units:'t Ni/yr',year:2023},
+  {mineral:'Nickel',operator:'Jinchuan Group',country:'China',facility:'Jinchuan Smelter',type:'Smelter',cap:150000,units:'t Ni/yr',year:2023},
+  {mineral:'Nickel',operator:'BHP',country:'Australia',facility:'Nickel West',type:'Smelter',cap:100000,units:'t Ni/yr',year:2023},
+  {mineral:'Rare Earths',operator:'MP Materials',country:'USA',facility:'Mountain Pass',type:'Mine',cap:42500,units:'t REO/yr',year:2023},
+  {mineral:'Rare Earths',operator:'Lynas',country:'Australia',facility:'Mt Weld Mine',type:'Mine',cap:16000,units:'t REO/yr',year:2023},
+  {mineral:'Rare Earths',operator:'Northern Minerals',country:'Australia',facility:'Browns Range',type:'Mine',cap:2000,units:'t HRE/yr',year:2023},
+  {mineral:'Tungsten',operator:'Xiamen Tungsten',country:'China',facility:'Various (Jiangxi)',type:'Mine+Processor',cap:30000,units:'t WO3/yr',year:2023},
+  {mineral:'Tungsten',operator:'Masan Resources',country:'Vietnam',facility:'Nui Phao',type:'Mine',cap:7000,units:'t WO3/yr',year:2023},
+];
+
+const POLICY_EVENTS = [
+  {date:'2024-09',country:'China',flag:'🇨🇳',mineral:'Gallium / Germanium',event:'Export licensing requirements tightened',impact:'Critical',status:'Active'},
+  {date:'2024-08',country:'China',flag:'🇨🇳',mineral:'Rare Earths',event:'Draft regulations restrict REE processing exports',impact:'Critical',status:'Monitoring'},
+  {date:'2024-07',country:'Indonesia',flag:'🇮🇩',mineral:'Nickel',event:'Ore export ban enforcement; domestic processing mandated',impact:'High',status:'Active'},
+  {date:'2024-06',country:'DRC',flag:'🇨🇩',mineral:'Cobalt',event:'Royalty rate increase proposed (3.5% → 5%)',impact:'High',status:'Pending'},
+  {date:'2024-05',country:'EU',flag:'🇪🇺',mineral:'All',event:'Critical Raw Materials Act enters force',impact:'Medium',status:'Active'},
+  {date:'2024-03',country:'USA',flag:'🇺🇸',mineral:'Rare Earths',event:'IRA domestic content rules tighten for EV batteries',impact:'Medium',status:'Active'},
+  {date:'2024-01',country:'Myanmar',flag:'🇲🇲',mineral:'Rare Earths',event:'Junta controls key mining districts; supply disruption risk',impact:'Critical',status:'Monitoring'},
+  {date:'2023-10',country:'Russia',flag:'🇷🇺',mineral:'Nickel / Palladium',event:'Sanctions escalation threatens supply chain diversification',impact:'High',status:'Active'},
+];
+
+const SIGNALS = [
+  {sev:'critical',title:'China Tightens REE &amp; Gallium Export Controls',desc:'Draft regulation on rare earth magnet processing licenses and new gallium export licensing could reduce global supply 30–40% within 6 months if enacted.',minerals:['rare-earth','gallium','germanium'],date:'2024-12-01'},
+  {sev:'critical',title:'DRC Cobalt Royalty Renegotiation',desc:'Kinshasa pushing Glencore and CMOC for higher royalties ahead of 2025 budget. Risk of temporary suspension during negotiations.',minerals:['cobalt'],date:'2024-11-18'},
+  {sev:'high',title:'Indonesia Processing Nationalism Deepening',desc:'HPAL capacity expansion bottlenecked by power grid. Western buyers face ~18-month lead time for long-term supply agreements.',minerals:['nickel','cobalt'],date:'2024-11-05'},
+  {sev:'high',title:'Brazil Niobium — Single-Country Concentration Risk',desc:'Brazil controls 92% of global niobium supply. CBMM pricing power increases as high-strength steel and superconductor demand accelerates.',minerals:['niobium'],date:'2024-10-28'},
+  {sev:'medium',title:'Australia–EU Critical Minerals Partnership Progress',desc:'Joint MoU signed for lithium and REE supply chains. Greenfield projects expected to receive EU investment backing by mid-2025.',minerals:['lithium','rare-earth'],date:'2024-10-22'},
+  {sev:'medium',title:'Graphite Anode Supply Chain Under Pressure',desc:'China controls 76% of natural graphite mining and dominates synthetic anode processing. EV demand surge creating structural tightness through 2027.',minerals:['graphite'],date:'2024-10-10'},
+  {sev:'low',title:'US Mountain Pass REE Expansion On Track',desc:'MP Materials targeting 70,000t REO/yr by 2026. Fort Worth magnet facility on schedule — reduces US REE import dependency ~95% → ~70%.',minerals:['rare-earth'],date:'2024-09-30'},
+];
+
+// ─── HELPERS ─────────────────────────────────────────────────────────
+const NS = 'http://www.w3.org/2000/svg';
+function se(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k,v] of Object.entries(attrs)) e.setAttribute(k,v);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function rC(r){return{Critical:'#9E2114',High:'#B85020',Medium:'#8B6614',Low:'#2A7A52'}[r]||'#2A7A52';}
+function rF(r){return{Critical:'gc',High:'gh',Medium:'gm',Low:'gl'}[r]||'gl';}
+function rCls(r){return{Critical:'rc',High:'rh',Medium:'rm',Low:'rl'}[r]||'rl';}
+function rbCls(r){return'risk-'+r.toLowerCase();}
+function mById(id){return MINERALS.find(m=>m.id===id);}
+function fmt(n){if(n>=1e6)return(n/1e6).toFixed(2)+'M t';if(n>=1e3)return(n/1e3).toFixed(0)+'k t';return n+' t';}
+
+// ─── NAVIGATION ───────────────────────────────────────────────────────
+function setActive(id) {
+  document.querySelectorAll('.nav-item, .widget-card').forEach(el => {
+    el.classList.toggle('active', el.dataset.panel === id);
+  });
+  document.querySelectorAll('.apanel').forEach(el => {
+    el.classList.toggle('is-active', el.id === 'apanel-' + id);
+  });
+}
+
+function filterMineral(id, el) {
+  document.querySelectorAll('.nav-chip').forEach(c => c.classList.remove('active-filter'));
+  el.classList.add('active-filter');
+}
+
+// ─── RENDER MAP ───────────────────────────────────────────────────────
+function renderMap() {
+  const cL = document.getElementById('country-layer');
+  const mL = document.getElementById('marker-layer');
+  const ABBR = {australia:'AUS',canada:'CAN',china:'CHN',eu:'EU',india:'IND',japan:'JPN',uk:'UK',us:'USA'};
+
+  for (const [cid, rings] of Object.entries(COUNTRY_SHAPES)) {
+    const c = COUNTRIES.find(x=>x.id===cid);
+    if (!c) continue;
+    const col = rC(c.risk);
+    rings.forEach(ring => {
+      se('path', { d:ringToD(ring), fill:col+'30', stroke:col, 'stroke-width':'1.5',
+        'stroke-opacity':'0.8', id:'cs-'+cid, style:'cursor:pointer',
+        onclick:`selectCountry('${cid}')` }, cL);
+    });
+  }
+
+  for (const c of COUNTRIES) {
+    const [mx, my] = svgXY(c.lat, c.lon);
+    const col = rC(c.risk);
+    const g = se('g', { onclick:`selectCountry('${c.id}')`, style:'cursor:pointer' }, mL);
+    se('circle', { cx:mx, cy:my, r:14, fill:col+'18' }, g);
+    se('circle', { cx:mx, cy:my, r:8, fill:col, 'fill-opacity':'0.25', filter:`url(#${rF(c.risk)})` }, g);
+    se('circle', { cx:mx, cy:my, r:5, fill:col, stroke:'rgba(255,255,255,0.8)', 'stroke-width':'1.2' }, g);
+    se('circle', { cx:mx, cy:my, r:2.2, fill:'rgba(255,255,255,0.95)' }, g);
+    const lbl = se('text', { x:mx, y:my-14, 'text-anchor':'middle', 'font-size':'8.5',
+      fill:col, 'font-weight':'700', 'font-family':"'Segoe UI',sans-serif",
+      stroke:'rgba(248,244,239,0.95)', 'stroke-width':'2.5', 'paint-order':'stroke' }, g);
+    lbl.textContent = ABBR[c.id] || c.id.toUpperCase();
+  }
+}
+
+// ─── SELECT COUNTRY ───────────────────────────────────────────────────
+function selectCountry(id) {
+  const c = COUNTRIES.find(x=>x.id===id);
+  if (!c) return;
+  document.querySelectorAll('[id^="cs-"]').forEach(e=>e.setAttribute('stroke-opacity','0.4'));
+  const s = document.getElementById('cs-'+id);
+  if (s) s.setAttribute('stroke-opacity','1');
+
+  const panel = document.getElementById('country-panel');
+  panel.style.display = 'block';
+  const col = rC(c.risk);
+
+  document.getElementById('cp-flag').textContent = c.flag;
+  document.getElementById('cp-name').textContent = c.name;
+  document.getElementById('cp-sub').textContent = c.region + ' · ' + c.role;
+
+  document.getElementById('cp-meta').innerHTML = `
+    <span class="meta-chip ${rCls(c.risk)}">Export Risk: ${c.risk}</span>
+    <span class="meta-chip" style="background:rgba(6,66,108,.1);color:#06426C;border:1px solid rgba(6,66,108,.25);">${c.bloc}</span>
+    <span class="meta-chip" style="background:rgba(107,114,128,.1);color:#4B5E6D;border:1px solid rgba(107,114,128,.25);">Stability: ${c.stability}</span>`;
+
+  document.getElementById('cp-grid').innerHTML = `
+    <div class="cp-stat">
+      <div class="cp-stat-lbl">Governance Score</div>
+      <div class="cp-stat-val" style="color:${c.gov>=7?'#2A7A52':c.gov>=5?'#8B6614':'#9E2114'};">${c.gov}<span style="font-size:10px;color:var(--text2);">/10</span></div>
+    </div>
+    <div class="cp-stat">
+      <div class="cp-stat-lbl">Export Policy Risk</div>
+      <div class="cp-stat-val" style="color:${col};">${c.risk}</div>
+    </div>
+    <div class="cp-stat">
+      <div class="cp-stat-lbl">Alliance Bloc</div>
+      <div class="cp-stat-val" style="font-size:10px;">${c.bloc}</div>
+    </div>
+    <div class="cp-stat">
+      <div class="cp-stat-lbl">Key Risk Factor</div>
+      <div class="cp-stat-val" style="font-size:10px;font-weight:600;">${c.key_risk}</div>
+    </div>`;
+
+  const badges = c.minerals.map(mid=>{
+    const m=mById(mid);
+    return m?`<span class="mineral-badge" style="border-color:${m.color};color:${m.color};background:${m.color}18;">${m.symbol} ${m.name}</span>`:'';
+  }).join('');
+  document.getElementById('cp-minerals').innerHTML = `
+    <div style="font-size:8px;color:var(--text2);letter-spacing:1px;margin-bottom:5px;margin-top:2px;">CRITICAL MINERALS</div>${badges}`;
+}
+
+// ─── RENDER PANELS ────────────────────────────────────────────────────
+function renderMinerals() {
+  document.getElementById('minerals-grid').innerHTML = MINERALS.map(m => {
+    const hhiPct = Math.min(100, (m.hhi / 10000) * 100);
+    const bars = [[m.tp1,m.tp1p,m.tp1f],[m.tp2,m.tp2p,m.tp2f],[m.tp3,m.tp3p,m.tp3f]].map(([name,pct,flag]) => `
+      <div class="producer-row">
+        <span style="font-size:12px;width:18px;">${flag}</span>
+        <span style="font-size:9px;color:var(--text2);flex:1;">${name}</span>
+        <div class="producer-bar-bg"><div class="producer-bar" style="width:${pct}%;background:${m.color};"></div></div>
+        <span style="font-size:10px;font-weight:700;color:var(--text);">${pct}%</span>
+      </div>`).join('');
+    return `
+    <div class="mineral-card" onclick="openMineralDetail('${m.id}')" title="Click for production chart">
+      <div class="mc-header">
+        <div><div class="mc-symbol" style="color:${m.color};">${m.symbol}</div><div class="mc-name">${m.name}</div></div>
+        <span class="risk-badge ${rbCls(m.risk_level)}">${m.risk_level}</span>
+      </div>
+      <div class="mc-stat">Production: <strong>${fmt(m.annual_production_mt)}/yr</strong></div>
+      <div class="mc-stat">Demand growth: <strong>+${m.demand_pct}%/yr</strong></div>
+      <div class="mc-stat">Processing: <strong>${m.proc} (${m.proc_pct}%)</strong></div>
+      <div style="margin-top:8px;">${bars}</div>
+      <div style="margin-top:10px;">
+        <div style="font-size:8px;color:var(--text2);display:flex;justify-content:space-between;">
+          <span>HHI: ${m.hhi.toLocaleString()}</span>
+          <span style="color:var(--navy);opacity:.5;">↗ chart</span>
+        </div>
+        <div class="hhi-bar-bg"><div class="hhi-bar" style="width:${hhiPct}%;background:${m.color};"></div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderProjects() {
+  const colMap = {}; MINERALS.forEach(m=>colMap[m.name]=m.color);
+  document.getElementById('projects-grid').innerHTML = PROJECTS.map(p => {
+    const col = colMap[p.mineral] || '#6B7280';
+    return `
+    <div class="project-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+        <div class="project-card-title">${p.facility}</div>
+        <span style="font-size:8px;padding:2px 6px;border-radius:3px;background:${col}18;color:${col};border:1px solid ${col}40;white-space:nowrap;flex-shrink:0;margin-left:6px;">${p.mineral}</span>
+      </div>
+      <div class="project-meta">🏭 ${p.type}</div>
+      <div class="project-meta">📍 ${p.country} · ${p.operator}</div>
+      <div class="project-cap">${p.cap.toLocaleString()}</div>
+      <div class="project-units">${p.units} · ${p.year}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderPolicy() {
+  const iMap={Critical:'#9E2114',High:'#B85020',Medium:'#8B6614',Low:'#2A7A52'};
+  const sBg={Active:'rgba(42,122,82,.1)',Monitoring:'rgba(139,102,20,.1)',Pending:'rgba(6,66,108,.1)'};
+  const sCol={Active:'#2A7A52',Monitoring:'#8B6614',Pending:'#06426C'};
+  document.getElementById('policy-tbody').innerHTML = POLICY_EVENTS.map(e => `
+    <tr>
+      <td style="color:var(--text2);font-size:10px;">${e.date}</td>
+      <td>${e.flag} ${e.country}</td>
+      <td style="color:var(--text2);">${e.mineral}</td>
+      <td>${e.event}</td>
+      <td style="color:${iMap[e.impact]};font-weight:700;">${e.impact}</td>
+      <td><span style="font-size:8px;padding:2px 7px;border-radius:3px;background:${sBg[e.status]};color:${sCol[e.status]};font-weight:700;">${e.status}</span></td>
+    </tr>`).join('');
+}
+
+function renderSignals() {
+  const colMap={critical:'#9E2114',high:'#B85020',medium:'#8B6614',low:'#2A7A52'};
+  const tagBg={critical:'rgba(158,33,20,.1)',high:'rgba(184,80,32,.1)',medium:'rgba(139,102,20,.1)',low:'rgba(42,122,82,.1)'};
+  document.getElementById('signals-list').innerHTML = SIGNALS.map(s => {
+    const col = colMap[s.sev];
+    const badges = s.minerals.map(mid=>{const m=mById(mid);return m?`<span style="font-size:8px;padding:2px 6px;border-radius:3px;background:${m.color}18;color:${m.color};border:1px solid ${m.color}44;">${m.name}</span>`:''}).join('');
+    return `
+    <div class="signal-item">
+      <div class="signal-dot ${s.sev==='critical'?'pulse':''}" style="background:${col};box-shadow:0 0 6px ${col}60;"></div>
+      <div style="flex:1;">
+        <div class="signal-title">${s.title}</div>
+        <div class="signal-desc">${s.desc}</div>
+        <div class="signal-footer">
+          <span style="font-size:8px;padding:2px 7px;border-radius:3px;background:${tagBg[s.sev]};color:${col};font-weight:700;">${s.sev.toUpperCase()}</span>
+          ${badges}
+          <span style="font-size:9px;color:var(--graph);margin-left:auto;">${s.date}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderRisk() {
+  const drivers = {
+    'rare-earth':['China dominance (67.8% mine, 87% process)','Myanmar conflict disruption','Export quota tightening','Magnet supply bottleneck for EVs'],
+    'platinum-group-metals':['South Africa power grid instability','Russia sanctions overhang','Hydrogen fuel cell demand surge','Recycling supply offsetting mine growth'],
+    cobalt:['DRC concentration (74.5%)','Artisanal mining instability','Chinese CMOC offtake control','EV demand surge through 2030'],
+    gallium:['China monopoly (98.7%)','2023 export licensing shock','No viable alternative sources','5G and solar chip dependency'],
+    lithium:['Chile/Argentina water scarcity','China CATL processing dominance','Spodumene price volatility','Recycling infrastructure lagging demand'],
+    nickel:['Indonesia processing nationalism','Class 1 vs Class 2 quality divergence','Russia sanctions overhang','HPAL expansion bottleneck'],
+    tungsten:['China monopoly (77.9%)','No viable western substitute','Defense sector demand surge','Vietnam / Myanmar supply fragility'],
+    antimony:['China + Tajikistan + Myanmar concentration','Flame retardant regulatory risk','Ammunition supply chain concern','Limited recycling pathway'],
+    bismuth:['China dominance (81.6%)','By-product of lead/copper smelting','Limited substitution options','Medical & cosmetics demand growth'],
+    germanium:['China monopoly (93.3%)','2023 export licensing shock','Fiber optic & IR optic demand','Very small global production volume'],
+    graphite:['China processing monopoly (75.9%)','Battery anode supply bottleneck','Synthetic graphite scaling costs','Limited ex-China refining capacity'],
+    manganese:['South Africa / Gabon concentration','Steel demand tied to construction cycles','NMC battery grade supply shortage','Water-intensive processing'],
+    niobium:['Brazil near-monopoly (92.4%)','CBMM pricing power','Superconductor demand growth','No strategic stockpile in western nations'],
+    silicon:['China dominance (83.6%)','Energy-intensive smelting process','Solar and semiconductor demand surge','Western capacity build-out slow'],
+    tantalum:['DRC / Rwanda conflict mineral risk','Capacitor demand tied to electronics cycle','Small global market, volatile pricing','Limited secondary production'],
+    titanium:['China 36% share and growing','Aerospace demand backlog','Sponge titanium processing concentration','Russia Ukraine disruption'],
+    vanadium:['China + Russia dual dominance (87%)','Redox flow battery demand emerging','Steel alloy demand fluctuation','Limited western primary production'],
+    copper:['Chile / DRC / Peru concentration','Water scarcity in Atacama','Grade decline at mature mines','EV and grid demand structural surge'],
+    magnesium:['China monopoly (87.9%)','Energy-intensive Pidgeon process','Auto lightweighting demand growth','No western primary producers at scale'],
+    tellurium:['China 78% share','By-product scarcity — supply inelastic','CdTe thin-film solar demand growing','Very small global production volume'],
+  };
+  document.getElementById('risk-matrix').innerHTML = MINERALS.map(m => {
+    const col = rC(m.risk_level);
+    const dvrs = (drivers[m.id]||[]).map(d=>`<div class="risk-driver">${d}</div>`).join('');
+    return `
+    <div class="risk-cell" style="border-top:3px solid ${col};">
+      <div style="font-size:10px;font-weight:700;margin-bottom:8px;color:var(--text);">${m.symbol} — ${m.name}</div>
+      <div class="risk-score-big" style="color:${col};">${m.risk_score}</div>
+      <div style="font-size:8px;color:var(--text2);letter-spacing:1px;margin-bottom:8px;">/ 10.0</div>
+      ${dvrs}
+    </div>`;
+  }).join('');
+}
+
+// ─── RENDER WIDGETS ───────────────────────────────────────────────────
+function renderWidgets() {
+  // Mineral Intel — HHI bars
+  document.getElementById('w-minerals').innerHTML = MINERALS.map(m => {
+    const pct = Math.min(100, (m.hhi / 10000) * 100);
+    const col = rC(m.risk_level);
+    const short = {Critical:'CRIT',High:'HIGH',Medium:'MED',Low:'LOW'}[m.risk_level];
+    return `<div class="w-row">
+      <span class="w-sym" style="color:${m.color};">${m.symbol}</span>
+      <div class="w-bar-bg"><div class="w-bar" style="width:${pct}%;background:${m.color};opacity:.7;"></div></div>
+      <span class="w-val">${(m.hhi/1000).toFixed(1)}k</span>
+      <span class="w-badge" style="background:${col}18;color:${col};">${short}</span>
+    </div>`;
+  }).join('');
+
+  // Projects — count by mineral
+  const projByMin = {};
+  PROJECTS.forEach(p => { projByMin[p.mineral] = (projByMin[p.mineral]||0)+1; });
+  document.getElementById('w-projects').innerHTML = Object.entries(projByMin)
+    .sort((a,b)=>b[1]-a[1])
+    .map(([name, cnt]) => {
+      const m = MINERALS.find(x=>x.name===name);
+      const col = m ? m.color : '#6B7280';
+      const sym = m ? m.symbol : name.substring(0,2);
+      const dots = Array(Math.min(cnt,6)).fill(0).map(()=>`<div class="w-proj-dot" style="background:${col};opacity:.75;"></div>`).join('');
+      return `<div class="w-proj-row">
+        <span class="w-sym" style="color:${col};">${sym}</span>
+        <div class="w-proj-dots">${dots}</div>
+        <span class="w-proj-cnt" style="color:${col};">${cnt}</span>
+      </div>`;
+    }).join('');
+
+  // Policy — top 3
+  const iC={Critical:'#9E2114',High:'#B85020',Medium:'#8B6614',Low:'#2A7A52'};
+  document.getElementById('w-policy').innerHTML = POLICY_EVENTS.slice(0,3).map(e => {
+    const col = iC[e.impact];
+    const sh = {Critical:'CRIT',High:'HIGH',Medium:'MED',Low:'LOW'}[e.impact];
+    const label = `${e.flag} ${e.country} – ${e.mineral.length>14?e.mineral.substring(0,14)+'…':e.mineral}`;
+    return `<div class="w-ev-row">
+      <div class="w-ev-dot" style="background:${col};"></div>
+      <span class="w-ev-text">${label}</span>
+      <span class="w-ev-sev" style="color:${col};">${sh}</span>
+    </div>`;
+  }).join('') + `<div class="w-more">+${POLICY_EVENTS.length-3} more events</div>`;
+
+  // Signals — top 3
+  const sC={critical:'#9E2114',high:'#B85020',medium:'#8B6614',low:'#2A7A52'};
+  document.getElementById('w-signals').innerHTML = SIGNALS.slice(0,3).map(s => {
+    const col = sC[s.sev];
+    const sh = {critical:'CRIT',high:'HIGH',medium:'MED',low:'LOW'}[s.sev];
+    const ttl = s.title.length>24?s.title.substring(0,24)+'…':s.title;
+    return `<div class="w-ev-row">
+      <div class="w-ev-dot ${s.sev==='critical'?'pulse':''}" style="background:${col};box-shadow:0 0 4px ${col}80;"></div>
+      <span class="w-ev-text">${ttl}</span>
+      <span class="w-ev-sev" style="color:${col};">${sh}</span>
+    </div>`;
+  }).join('') + `<div class="w-more">+${SIGNALS.length-3} more signals</div>`;
+
+  // Risk — score bars sorted
+  const sorted = [...MINERALS].sort((a,b)=>b.risk_score-a.risk_score);
+  document.getElementById('w-risk').innerHTML = sorted.map(m => {
+    const col = rC(m.risk_level);
+    const pct = (m.risk_score / 10) * 100;
+    return `<div class="w-row">
+      <span class="w-sym" style="color:${m.color};">${m.symbol}</span>
+      <div class="w-bar-bg"><div class="w-bar" style="width:${pct}%;background:${col};opacity:.8;"></div></div>
+      <span class="w-score" style="color:${col};">${m.risk_score}</span>
+    </div>`;
+  }).join('');
+}
+
+// ─── MINERAL DETAIL MODAL ─────────────────────────────────────────────
+function fmtVal(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(0) + 'k';
+  return n.toFixed(n < 10 ? 1 : 0);
+}
+
+function fmtLarge(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(1).replace(/\.0$/,'') + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(1).replace(/\.0$/,'') + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(0) + 'K';
+  return n.toLocaleString();
+}
+function drawStackedChart(container, tsData, mineralColor) {
+  const { years, series } = tsData;
+  const countries = Object.keys(series);
+  const W = 700, H = 220;
+  const padL = 58, padR = 12, padT = 14, padB = 34;
+  const cW = W - padL - padR, cH = H - padT - padB;
+  const nBars = years.length;
+  const barGap = 6;
+  const barW = Math.min(52, (cW / nBars) - barGap);
+
+  const totals = years.map((_, i) => countries.reduce((s, c) => s + (series[c][i] || 0), 0));
+  const maxY = Math.max(...totals) * 1.08 || 1;
+
+  function niceTicks(maxV, n) {
+    const raw = maxV / n;
+    const exp = Math.floor(Math.log10(raw));
+    const base = Math.pow(10, exp);
+    const mult = raw/base < 2 ? 2 : raw/base < 5 ? 5 : 10;
+    const step = base * mult;
+    const ticks = [];
+    for (let v = 0; v <= maxV * 1.05; v += step) ticks.push(Math.round(v));
+    return ticks;
+  }
+  const ticks = niceTicks(maxY, 4);
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="font-family:'Segoe UI',sans-serif;display:block;">`;
+
+  ticks.forEach(tick => {
+    const y = padT + cH - (tick / maxY) * cH;
+    svg += `<line x1="${padL}" x2="${W-padR}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#DDD6CC" stroke-width="1"/>`;
+    svg += `<text x="${padL-6}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="#4B5E6D">${fmtVal(tick)}</text>`;
+  });
+
+  years.forEach((yr, i) => {
+    const x = padL + i * (cW / nBars) + (cW / nBars - barW) / 2;
+    let stackY = padT + cH;
+    countries.forEach((country, ci) => {
+      const val = series[country][i] || 0;
+      const bH = (val / maxY) * cH;
+      if (bH < 0.5) return;
+      stackY -= bH;
+      const col = CHART_COLORS[ci % CHART_COLORS.length];
+      const rx = ci === countries.length - 1 || stackY <= padT + 1 ? 3 : 0;
+      svg += `<rect x="${x.toFixed(1)}" y="${stackY.toFixed(1)}" width="${barW}" height="${bH.toFixed(1)}" fill="${col}" rx="${rx}" ry="${rx}"><title>${country}: ${fmtVal(val)} t (${yr})</title></rect>`;
+    });
+    svg += `<text x="${(x + barW/2).toFixed(1)}" y="${H - padB + 14}" text-anchor="middle" font-size="9" fill="#4B5E6D" font-weight="600">${yr}</text>`;
+    const totalH = (totals[i] / maxY) * cH;
+    const topY = padT + cH - totalH - 5;
+    if (topY > padT) {
+      svg += `<text x="${(x + barW/2).toFixed(1)}" y="${topY.toFixed(1)}" text-anchor="middle" font-size="7.5" fill="#4B5E6D">${fmtVal(totals[i])}</text>`;
+    }
+  });
+
+  svg += `<line x1="${padL}" x2="${padL}" y1="${padT}" y2="${padT+cH}" stroke="#DDD6CC" stroke-width="1.5"/>`;
+  svg += `<line x1="${padL}" x2="${W-padR}" y1="${padT+cH}" y2="${padT+cH}" stroke="#DDD6CC" stroke-width="1.5"/>`;
+  svg += '</svg>';
+
+  // Use innerHTML on the wrapper — avoids the outerHTML-kills-the-id bug
+  container.innerHTML = svg;
+}
+
+function openMineralDetail(id) {
+  const m = MINERALS.find(x => x.id === id);
+  if (!m) return;
+  const ts = TIMESERIES[id];
+
+  // Header
+  document.getElementById('modal-sym').textContent = m.symbol;
+  document.getElementById('modal-sym').style.color = m.color;
+  document.getElementById('modal-name').textContent = m.name;
+  document.getElementById('modal-cat').textContent = m.category;
+  const rb = document.getElementById('modal-risk-badge');
+  rb.textContent = m.risk_level;
+  rb.className = 'risk-badge ' + rbCls(m.risk_level);
+
+  // Stats row
+  document.getElementById('modal-stats-row').innerHTML = `
+    <div class="modal-stat">
+      <div class="modal-stat-lbl">Annual Production</div>
+      <div class="modal-stat-val">${fmt(m.annual_production_mt)}</div>
+      <div class="modal-stat-sub">Latest year</div>
+    </div>
+    <div class="modal-stat">
+      <div class="modal-stat-lbl">Demand Growth</div>
+      <div class="modal-stat-val" style="color:var(--green);">+${m.demand_pct}%/yr</div>
+      <div class="modal-stat-sub">Projected to ${m.hhi > 5000 ? 2030 : 2030}</div>
+    </div>
+    <div class="modal-stat">
+      <div class="modal-stat-lbl">Top Producer</div>
+      <div class="modal-stat-val" style="font-size:12px;">${m.tp1}</div>
+      <div class="modal-stat-sub">${m.tp1p}% share</div>
+    </div>
+    <div class="modal-stat">
+      <div class="modal-stat-lbl">HHI Concentration</div>
+      <div class="modal-stat-val" style="color:${rC(m.risk_level)};">${m.hhi.toLocaleString()}</div>
+      <div class="modal-stat-sub">${m.risk_level} concentration</div>
+    </div>`;
+
+  // Chart
+  if (ts) {
+    const chartWrap = document.getElementById('modal-chart-wrap');
+    drawStackedChart(chartWrap, ts, m.color);
+    // Legend
+    const countries = Object.keys(ts.series);
+    document.getElementById('modal-legend').innerHTML = countries.map((c, i) =>
+      `<div class="legend-item-c">
+        <div class="legend-swatch" style="background:${CHART_COLORS[i % CHART_COLORS.length]};"></div>
+        <span>${c}</span>
+      </div>`
+    ).join('');
+  }
+
+  // Reserves section
+  const resEl = document.getElementById('modal-reserves');
+  if (m.reserves_mt !== null && m.reserves_mt !== undefined) {
+    const barColors = ['var(--navy)', 'var(--red)', 'var(--amber)'];
+    const holders = [
+      {n:m.rh1, p:m.rh1p}, {n:m.rh2, p:m.rh2p}, {n:m.rh3, p:m.rh3p}
+    ].filter(h => h.n !== null && h.n !== undefined);
+    resEl.innerHTML = `
+      <div class="modal-uses-lbl">Global Reserves</div>
+      <div class="reserves-hdr-row">
+        <div class="reserves-col">
+          <div class="reserves-col-val">${fmtLarge(m.reserves_mt)}</div>
+          <div class="reserves-col-unit">${m.reserves_unit}</div>
+        </div>
+        <div class="reserves-col" style="text-align:right;">
+          <div class="reserves-col-lbl">Reserve Life</div>
+          <div class="reserves-life-val">${m.reserve_life} years</div>
+          <div class="reserves-col-unit">at current production rate</div>
+        </div>
+      </div>
+      <div>
+        ${holders.map((h,i) => `
+          <div class="reserves-bar-row">
+            <div class="reserves-bar-country">${h.n}</div>
+            <div class="reserves-bar-track"><div class="reserves-bar-fill" style="width:${h.p}%;background:${barColors[i]};"></div></div>
+            <div class="reserves-bar-pct">${h.p}%</div>
+          </div>`).join('')}
+      </div>
+      <div class="reserves-source">Source: ${m.reserves_source}</div>`;
+  } else {
+    resEl.innerHTML = `
+      <div class="modal-uses-lbl">Global Reserves</div>
+      <div class="reserves-null-msg">${m.reserves_unit}</div>
+      <div class="reserves-source">Source: ${m.reserves_source}</div>`;
+  }
+
+  // Uses
+  document.getElementById('modal-uses').textContent = m.uses;
+
+  // Open
+  document.getElementById('mineral-modal').classList.add('open');
+}
+
+function closeMineralModal() {
+  document.getElementById('mineral-modal').classList.remove('open');
+}
+
+// Close on Escape key
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMineralModal(); });
+
+// ─── INIT ─────────────────────────────────────────────────────────────
+// ─── CESIUM GLOBE (replaces SVG map) ─────────────────────────────────────
+function initCanaryGlobe() {
+  Cesium.Ion.defaultAccessToken = "";
+
+  const viewer = new Cesium.Viewer("canary-globe", {
+    animation: false, baseLayerPicker: false, fullscreenButton: false,
+    vrButton: false, geocoder: false, homeButton: false,
+    infoBox: false, sceneModePicker: false, selectionIndicator: false,
+    timeline: false, navigationHelpButton: false,
+    navigationInstructionsInitiallyVisible: false,
+    terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+    skyBox: false,
+    skyAtmosphere: false,
+  });
+
+  // Schematic globe — no external tile dependency, fully standalone
+  // Use Natural Earth II imagery bundled with Cesium (no network requests)
+  viewer.imageryLayers.removeAll();
+  viewer.imageryLayers.addImageryProvider(
+    new Cesium.TileMapServiceImageryProvider({
+      url: Cesium.buildModuleUrl('Assets/Textures/NaturalEarthII'),
+      fileExtension: 'jpg',
+      maximumLevel: 2,
+      credit: new Cesium.Credit('Natural Earth II imagery'),
+    })
+  );
+
+  // Warm background matching canary page, atmosphere glow
+  viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#e8e3db");
+  viewer.scene.globe.baseColor  = Cesium.Color.fromCssColorString("#3a7bbf");
+  viewer.scene.globe.enableLighting   = false;
+  viewer.scene.globe.showGroundAtmosphere = true;
+  viewer.scene.skyAtmosphere = new Cesium.SkyAtmosphere();
+  viewer.scene.skyAtmosphere.atmosphereLightIntensity = 5.0;
+
+  // Initial camera — slight tilt shows globe curvature while fitting all 8 countries
+  viewer.camera.setView({
+    destination: Cesium.Cartesian3.fromDegrees(60, 10, 28000000),
+    orientation: { heading: 0, pitch: Cesium.Math.toRadians(-72), roll: 0 },
+  });
+
+  // Gentle auto-rotation
+  let autoRotate = true, dragging = false;
+  viewer.scene.postRender.addEventListener(() => {
+    if (autoRotate && !dragging) viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z, -0.0006);
+  });
+  const evtH = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+  evtH.setInputAction(() => { dragging = true;  autoRotate = false; }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+  evtH.setInputAction(() => { dragging = false; autoRotate = true;  }, Cesium.ScreenSpaceEventType.LEFT_UP);
+
+  // Plot each country from the embedded COUNTRIES array
+  COUNTRIES.forEach(c => {
+    const col = rC(c.risk);
+    const sz = Math.max(9, Math.min(15, 9 + c.minerals.length * 0.45));
+    viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(c.lon, c.lat),
+      point: new Cesium.PointGraphics({
+        pixelSize: sz,
+        color: Cesium.Color.fromCssColorString(col).withAlpha(0.9),
+        outlineColor: Cesium.Color.WHITE.withAlpha(0.85),
+        outlineWidth: 1.8,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        scaleByDistance: new Cesium.NearFarScalar(1e5, 1.4, 4e7, 0.5),
+      }),
+      label: new Cesium.LabelGraphics({
+        text: c.flag + ' ' + c.name,
+        font: '600 10px "Segoe UI", sans-serif',
+        fillColor: Cesium.Color.fromCssColorString(col),
+        outlineColor: Cesium.Color.fromCssColorString("#F8F4EF").withAlpha(0.95),
+        outlineWidth: 3,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        pixelOffset: new Cesium.Cartesian2(0, -(sz + 7)),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        scaleByDistance: new Cesium.NearFarScalar(1e5, 1.0, 4e7, 0.45),
+      }),
+      properties: { countryId: c.id },
+    });
+  });
+
+  // Click → selectCountry (same handler used by the rest of the page)
+  evtH.setInputAction(e => {
+    const picked = viewer.scene.pick(e.position);
+    if (Cesium.defined(picked) && picked.id && picked.id.properties) {
+      const cid = picked.id.properties.countryId ? picked.id.properties.countryId.getValue() : null;
+      if (cid) {
+        autoRotate = false;
+        selectCountry(cid);
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(
+            COUNTRIES.find(x=>x.id===cid).lon,
+            COUNTRIES.find(x=>x.id===cid).lat,
+            12000000
+          ),
+          duration: 1.2,
+        });
+      }
+    }
+  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initCanaryGlobe();
+  renderMinerals();
+  renderProjects();
+  renderPolicy();
+  renderSignals();
+  renderRisk();
+  renderWidgets();
+  setActive('minerals');
+  const avg = Math.round(MINERALS.reduce((s,m)=>s+m.hhi,0)/MINERALS.length);
+  document.getElementById('hdr-hhi').textContent = avg.toLocaleString();
+});
+</script>
+</body>
+</html>

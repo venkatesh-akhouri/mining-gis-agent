@@ -147,7 +147,7 @@ html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui,
 
 /* ── MAP SECTION ───────────────────────────────────────────── */
 .map-section { flex-shrink: 0; position: relative; border-bottom: 1px solid var(--border); }
-.map-outer { position: relative; overflow: hidden; height: 380px; background: #e8e3db; }
+.map-outer { position: relative; overflow: hidden; height: 420px; background: #e8e3db; }
 #canary-globe { position: absolute; inset: 0; width: 100%; height: 100%; }
 #canary-globe .cesium-widget-credits,
 #canary-globe .cesium-credit-logoContainer { display: none !important; }
@@ -1410,10 +1410,10 @@ function initCanaryGlobe() {
   viewer.scene.skyAtmosphere = new Cesium.SkyAtmosphere();
   viewer.scene.skyAtmosphere.atmosphereLightIntensity = 5.0;
 
-  // Initial camera — slight tilt shows globe curvature while fitting all 8 countries
+  // Camera — straight down so the globe disc sits perfectly centred in the section
   viewer.camera.setView({
-    destination: Cesium.Cartesian3.fromDegrees(60, 10, 28000000),
-    orientation: { heading: 0, pitch: Cesium.Math.toRadians(-72), roll: 0 },
+    destination: Cesium.Cartesian3.fromDegrees(30, 15, 18000000),
+    orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 },
   });
 
   // Gentle auto-rotation
